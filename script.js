@@ -56,6 +56,7 @@ let peer = null;
 let conn = null;
 let myColor = null;
 let onlineConnected = false;
+let remoteBoardState = null;
 
 function playBeep(frequency, duration, type = "sine") {
   try {
@@ -440,6 +441,7 @@ function handlePromotion(pieceType) {
 async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
   if (gameOver) return false;
 
+  // Check if it's your turn in online mode
   if (currentMode === "online" && !isRemote && myColor !== turn) {
     document.getElementById("statusMsg").innerHTML =
       "❌ Wait for your opponent!";
@@ -459,6 +461,7 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
     isPawn &&
     ((turn === "white" && toRow === 0) || (turn === "black" && toRow === 7));
 
+  // Execute move
   board[toRow][toCol] = board[fromRow][fromCol];
   board[fromRow][fromCol] = "";
 
@@ -469,15 +472,21 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
     board[toRow][toCol] = turn === "white" ? "Q" : "q";
   }
 
-  // Send move to opponent
+  // Send move to opponent in online mode
   if (currentMode === "online" && !isRemote && conn && conn.open) {
-    conn.send({
+    const moveData = {
       type: "move",
-      from: [fromRow, fromCol],
-      to: [toRow, toCol],
-    });
+      fromRow: fromRow,
+      fromCol: fromCol,
+      toRow: toRow,
+      toCol: toCol,
+      promotion: isPromotion ? (turn === "white" ? "Q" : "q") : null,
+    };
+    conn.send(moveData);
+    console.log("Sent move:", moveData);
   }
 
+  // Check game state
   const nextTurn = turn === "white" ? "black" : "white";
   const kingPos = findKingPosition(board, nextTurn);
   const opponentInCheck = isSquareAttacked(
@@ -526,13 +535,14 @@ async function aiMove() {
   await new Promise((resolve) => setTimeout(resolve, 300));
   if (!gameOver && turn === "black") {
     const bestMove = getBestMove(board);
-    if (bestMove)
+    if (bestMove) {
       await makeMove(
         bestMove.from[0],
         bestMove.from[1],
         bestMove.to[0],
         bestMove.to[1],
       );
+    }
   }
   aiThinking = false;
   renderBoard();
@@ -540,11 +550,21 @@ async function aiMove() {
 }
 
 function updateUI() {
-  // Update turn display in offcanvas
   const turnPieceElem = document.getElementById("offcanvasTurnPiece");
   const turnTextElem = document.getElementById("offcanvasTurnText");
   turnPieceElem.innerHTML = turn === "white" ? "♔" : "♚";
   turnTextElem.innerText = turn === "white" ? "White's Turn" : "Black's Turn";
+
+  // Also update main status if needed
+  if (!gameOver && currentMode === "online") {
+    if (myColor === turn) {
+      document.getElementById("statusMsg").innerHTML =
+        "🎮 Your turn! Make a move";
+    } else {
+      document.getElementById("statusMsg").innerHTML =
+        "🎮 Waiting for opponent...";
+    }
+  }
 }
 
 function resetGame() {
@@ -569,8 +589,6 @@ function resetGame() {
 
   if (currentMode === "computer" && turn === "black")
     setTimeout(() => aiMove(), 200);
-  if (currentMode === "online" && conn && conn.open)
-    conn.send({ type: "reset" });
 }
 
 function renderBoard() {
@@ -683,7 +701,7 @@ async function createGame() {
 
   const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
   document.getElementById("offcanvasRoomDisplay").textContent =
-    `🎮 Code: ${gameId}`;
+    `🎮 Your Code: ${gameId}`;
   document.getElementById("offcanvasRoomDisplay").style.display = "block";
 
   peer = new Peer(gameId, {
@@ -701,7 +719,7 @@ async function createGame() {
     turn = "white";
     currentMode = "online";
     document.getElementById("statusMsg").innerHTML =
-      `✅ Game created! Code: ${gameId}`;
+      `✅ Game created! Share code: ${gameId}`;
     document.getElementById("offcanvasConnectionStatus").innerHTML =
       "🟡 Waiting for opponent...";
     document.getElementById("offcanvasConnectionStatus").style.color =
@@ -721,12 +739,14 @@ async function createGame() {
       "🎮 Opponent joined! You move first.";
 
     conn.on("data", async (data) => {
+      console.log("Received data:", data);
       if (data.type === "move") {
+        // Apply opponent's move
         await makeMove(
-          data.from[0],
-          data.from[1],
-          data.to[0],
-          data.to[1],
+          data.fromRow,
+          data.fromCol,
+          data.toRow,
+          data.toCol,
           true,
         );
         renderBoard();
@@ -750,8 +770,6 @@ async function createGame() {
   peer.on("error", (err) => {
     console.error("Peer error:", err);
     document.getElementById("statusMsg").innerHTML = `❌ Error: ${err}`;
-    document.getElementById("offcanvasConnectionStatus").innerHTML =
-      "❌ Connection failed";
   });
 }
 
@@ -798,12 +816,13 @@ async function joinGame() {
     });
 
     conn.on("data", async (data) => {
+      console.log("Received data:", data);
       if (data.type === "move") {
         await makeMove(
-          data.from[0],
-          data.from[1],
-          data.to[0],
-          data.to[1],
+          data.fromRow,
+          data.fromCol,
+          data.toRow,
+          data.toCol,
           true,
         );
         renderBoard();
@@ -828,8 +847,6 @@ async function joinGame() {
     console.error("Peer error:", err);
     document.getElementById("statusMsg").innerHTML =
       `❌ Failed to join: ${err}`;
-    document.getElementById("offcanvasConnectionStatus").innerHTML =
-      "❌ Connection failed";
   });
 }
 
@@ -853,6 +870,16 @@ function setDifficultyLevel(level) {
   resetGame();
   document.getElementById("statusMsg").innerHTML =
     `🎮 Difficulty set to ${level.toUpperCase()}`;
+  // Update active button styling
+  document
+    .querySelectorAll("#offcanvasEasy, #offcanvasMedium, #offcanvasHard")
+    .forEach((btn) => btn.classList.remove("active"));
+  if (level === "easy")
+    document.getElementById("offcanvasEasy").classList.add("active");
+  if (level === "medium")
+    document.getElementById("offcanvasMedium").classList.add("active");
+  if (level === "hard")
+    document.getElementById("offcanvasHard").classList.add("active");
 }
 
 function setGameMode(mode) {
@@ -890,7 +917,6 @@ document
   .getElementById("closeMenuBtn")
   .addEventListener("click", closeOffcanvas);
 
-// Offcanvas buttons
 document.getElementById("offcanvasCreateRoom").addEventListener("click", () => {
   createGame();
   closeOffcanvas();

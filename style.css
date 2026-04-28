@@ -12,13 +12,12 @@ body {
   font-family: "Segoe UI", "Poppins", "Arial", sans-serif;
 }
 
-/* Main Layout */
 .app {
   display: flex;
   min-height: 100vh;
 }
 
-/* Offcanvas Sidebar - Hidden by default on mobile */
+/* Offcanvas Sidebar */
 .offcanvas {
   position: fixed;
   top: 0;
@@ -39,7 +38,6 @@ body {
   left: 0;
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
   display: flex;
@@ -177,7 +175,6 @@ body {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
 }
 
-/* Menu Button */
 .menu-btn {
   position: fixed;
   top: 20px;
@@ -196,12 +193,6 @@ body {
   font-size: 24px;
 }
 
-.menu-btn:hover {
-  transform: scale(1.05);
-  filter: brightness(1.05);
-}
-
-/* Offcanvas Content */
 .offcanvas-section {
   margin-bottom: 25px;
 }
@@ -233,6 +224,17 @@ body {
   margin: 8px 0;
   width: 100%;
   text-align: center;
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.offcanvas-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
 }
 
 .offcanvas-btn.active {
@@ -271,22 +273,27 @@ body {
   margin-top: 10px;
 }
 
-/* Desktop Layout (Large Screens) */
+.status {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 8px 20px;
+  border-radius: 40px;
+  color: #ffd966;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+}
+
 @media (min-width: 1024px) {
   .offcanvas {
     position: relative;
     left: 0 !important;
     width: 320px;
     background: rgba(20, 25, 35, 0.95);
-    backdrop-filter: blur(20px);
   }
 
   .menu-btn {
     display: none !important;
-  }
-
-  .main-content {
-    padding: 20px;
   }
 
   .board-container {
@@ -295,44 +302,15 @@ body {
   }
 }
 
-/* Tablet and Mobile */
 @media (max-width: 1023px) {
   .menu-btn {
     display: flex;
-  }
-
-  .offcanvas {
-    width: 280px;
   }
 
   .board-container {
     width: min(80vw, 80vh);
     height: min(80vw, 80vh);
   }
-
-  .game-wrapper {
-    padding: 15px;
-  }
-}
-
-@media (max-width: 640px) {
-  .square {
-    font-size: calc(min(80vw, 80vh) / 12);
-  }
-}
-
-button {
-  border: none;
-  border-radius: 30px;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.05);
 }
 
 .modal {

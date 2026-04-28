@@ -4,23 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ultimate Chess - Online Multiplayer</title>
+    <title>Online Chess - Working Multiplayer</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-
-    </style>
+  
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 
 <body>
     <div class="app">
-        <!-- Menu Button for Mobile -->
         <div class="menu-btn" id="menuBtn">☰</div>
 
-        <!-- Offcanvas Sidebar -->
         <div class="offcanvas" id="offcanvas">
             <div style="text-align: right; margin-bottom: 20px;">
-                <button id="closeMenuBtn" style="background: none; font-size: 24px; padding: 5px;">✕</button>
+                <button id="closeMenuBtn"
+                    style="background: none; font-size: 24px; padding: 5px; color: white; cursor: pointer;">✕</button>
             </div>
 
             <div class="offcanvas-section">
@@ -51,7 +48,7 @@
                 <div class="offcanvas-title">⚙️ AI DIFFICULTY</div>
                 <button class="offcanvas-btn" id="offcanvasEasy">🟢 EASY</button>
                 <button class="offcanvas-btn" id="offcanvasMedium">🟡 MEDIUM</button>
-                <button class="offcanvas-btn" id="offcanvasHard">🔴 HARD</button>
+                <button class="offcanvas-btn active" id="offcanvasHard">🔴 HARD</button>
             </div>
 
             <div class="offcanvas-section">
@@ -59,14 +56,13 @@
             </div>
         </div>
 
-        <!-- Main Content -->
         <div class="main-content">
             <div class="game-wrapper">
                 <div class="game-container">
                     <div class="board-container">
                         <div class="board" id="chessboard"></div>
                     </div>
-                    <div class="status" id="statusMsg">🎮 Click menu to start online game!</div>
+                    <div class="status" id="statusMsg">🎮 Click menu to start!</div>
                 </div>
             </div>
         </div>
@@ -83,7 +79,8 @@
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+<script src="script.js"></script>
+ 
 </body>
 
 </html>
