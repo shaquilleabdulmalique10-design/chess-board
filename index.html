@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Online Chess - WORKING! 🔥</title>
+    <title>Online Chess - Working Multiplayer</title>
     <style>
         * {
             user-select: none;
@@ -29,8 +29,8 @@
         .offcanvas {
             position: fixed;
             top: 0;
-            left: -300px;
-            width: 300px;
+            left: -280px;
+            width: 280px;
             height: 100%;
             background: rgba(20, 25, 35, 0.98);
             backdrop-filter: blur(20px);
@@ -62,6 +62,13 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
         .board-container {
             position: relative;
             width: min(65vh, 65vw);
@@ -88,7 +95,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             font-size: calc(min(65vh, 65vw) / 12);
         }
@@ -104,10 +111,12 @@
         .square:hover {
             filter: brightness(1.05);
             transform: scale(0.98);
+            z-index: 10;
         }
 
         .square.selected {
             background: radial-gradient(circle, #ffdd77, #ffb347);
+            box-shadow: 0 0 20px rgba(255, 200, 0, 0.8);
             transform: scale(0.97);
         }
 
@@ -119,6 +128,10 @@
             background: radial-gradient(circle, #4caf50, #2e7d32);
             border-radius: 50%;
             animation: pulse 1.2s infinite;
+        }
+
+        .square.capture-move::before {
+            background: radial-gradient(circle, #ff4444, #cc0000);
         }
 
         @keyframes pulse {
@@ -162,11 +175,13 @@
         .piece-white {
             color: #ffffff;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
         }
 
         .piece-black {
             color: #1a1a1a;
             text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+            filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
         }
 
         .menu-btn {
@@ -182,8 +197,34 @@
             justify-content: center;
             cursor: pointer;
             z-index: 1001;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             font-size: 24px;
+        }
+
+        .offcanvas-section {
+            margin-bottom: 25px;
+        }
+
+        .offcanvas-title {
+            color: #ffd966;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ffd966;
+        }
+
+        .turn-indicator-offcanvas {
+            background: linear-gradient(135deg, #2c2c3a, #1a1a2a);
+            padding: 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             color: white;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border: 1px solid #ffd966;
         }
 
         .offcanvas-btn {
@@ -191,12 +232,13 @@
             padding: 12px 20px;
             margin: 8px 0;
             width: 100%;
+            text-align: center;
             border: none;
             border-radius: 30px;
             color: white;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .offcanvas-btn:hover {
@@ -220,48 +262,35 @@
             outline: none;
         }
 
-        .turn-indicator-offcanvas {
-            background: linear-gradient(135deg, #2c2c3a, #1a1a2a);
-            padding: 15px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
+        .room-code-display {
+            background: #000000aa;
+            padding: 12px;
+            border-radius: 15px;
+            font-family: monospace;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 15px;
-            border: 1px solid #ffd966;
+            color: #ffd966;
+            text-align: center;
+            margin: 10px 0;
         }
 
-        .offcanvas-title {
-            color: #ffd966;
-            font-size: 18px;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #ffd966;
+        .connection-status {
+            padding: 8px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 12px;
+            margin-top: 10px;
         }
 
         .status {
             background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
             padding: 8px 20px;
             border-radius: 40px;
             color: #ffd966;
             font-weight: bold;
             font-size: 14px;
             text-align: center;
-            margin-top: 15px;
-        }
-
-        .room-code-display {
-            background: #000000aa;
-            padding: 12px;
-            border-radius: 15px;
-            font-family: monospace;
-            font-size: 18px;
-            font-weight: bold;
-            color: #4caf50;
-            text-align: center;
-            margin: 10px 0;
         }
 
         @media (min-width: 1024px) {
@@ -274,6 +303,11 @@
 
             .menu-btn {
                 display: none !important;
+            }
+
+            .board-container {
+                width: min(70vh, 600px);
+                height: min(70vh, 600px);
             }
         }
 
@@ -330,6 +364,7 @@
             background: rgba(255, 215, 0, 0.3);
         }
     </style>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 
 <body>
@@ -342,28 +377,28 @@
                     style="background: none; font-size: 24px; padding: 5px; color: white; cursor: pointer;">✕</button>
             </div>
 
-            <div class="turn-indicator-offcanvas">
-                <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
-                <span id="offcanvasTurnText">White's Turn</span>
+            <div class="offcanvas-section">
+                <div class="turn-indicator-offcanvas">
+                    <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
+                    <span id="offcanvasTurnText">White's Turn</span>
+                </div>
             </div>
 
             <div class="offcanvas-section">
-                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER (WORKING!)</div>
-                <button class="offcanvas-btn" id="createGameBtn">🎮 CREATE GAME</button>
-                <div id="gameLinkDiv" style="display: none; margin: 10px 0;">
-                    <div class="room-code-display" id="gameLinkDisplay"></div>
-                    <button class="offcanvas-btn" id="copyLinkBtn" style="background: #4caf50;">📋 COPY LINK</button>
-                </div>
-                <button class="offcanvas-btn" id="offcanvasResetOnline" style="background: #ff9800;">🔄 RESET
-                    GAME</button>
+                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER</div>
+                <button class="offcanvas-btn" id="offcanvasCreateRoom">🎮 CREATE GAME</button>
+                <input type="text" id="offcanvasRoomCode" placeholder="Enter Game Code" class="offcanvas-input">
+                <button class="offcanvas-btn" id="offcanvasJoinRoom">🔗 JOIN GAME</button>
                 <button class="offcanvas-btn" id="offcanvasDisconnect" style="background: #d32f2f;">🚪
                     DISCONNECT</button>
+                <div id="offcanvasRoomDisplay" class="room-code-display" style="display: none;"></div>
+                <div id="offcanvasConnectionStatus" class="connection-status"></div>
             </div>
 
             <div class="offcanvas-section">
                 <div class="offcanvas-title">🎮 GAME MODES</div>
                 <button class="offcanvas-btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
-                <button class="offcanvas-btn" id="offcanvasModeFriend">👥 LOCAL 2P</button>
+                <button class="offcanvas-btn" id="offcanvasModeFriend">👥 LOCAL 2 PLAYER</button>
             </div>
 
             <div class="offcanvas-section">
@@ -376,10 +411,6 @@
             <div class="offcanvas-section">
                 <button class="offcanvas-btn" id="offcanvasReset" style="background: #ff9800;">🔄 NEW GAME</button>
             </div>
-
-            <div id="connectionStatus"
-                style="margin-top: 20px; padding: 10px; background: #00000066; border-radius: 15px; text-align: center; font-size: 12px;">
-            </div>
         </div>
 
         <div class="main-content">
@@ -388,7 +419,7 @@
                     <div class="board-container">
                         <div class="board" id="chessboard"></div>
                     </div>
-                    <div class="status" id="statusMsg">🎮 Click menu to play online!</div>
+                    <div class="status" id="statusMsg">🎮 Click menu to start!</div>
                 </div>
             </div>
         </div>
@@ -407,7 +438,6 @@
     </div>
 
     <script>
-        // Chess logic
         const pieces = {
             'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
             'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
@@ -441,10 +471,12 @@
         let aiThinking = false;
         let pendingPromotion = null;
 
-        // Online using BroadcastChannel (simple & works!)
-        let gameChannel = null;
-        let isOnline = false;
-        let myColorOnline = null;
+        // Online multiplayer
+        let peer = null;
+        let conn = null;
+        let myColor = null;
+        let onlineConnected = false;
+        let remoteBoardState = null;
 
         function playBeep(frequency, duration, type = 'sine') {
             try {
@@ -684,9 +716,9 @@
                     const newBoard = copyBoard(boardState);
                     newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
                     newBoard[move.from[0]][move.from[1]] = '';
-                    const evall = minimax(newBoard, depth - 1, false, alpha, beta);
-                    maxEval = Math.max(maxEval, evall);
-                    alpha = Math.max(alpha, evall);
+                    const eval = minimax(newBoard, depth - 1, false, alpha, beta);
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
                     if (beta <= alpha) break;
                 }
                 return maxEval;
@@ -702,9 +734,9 @@
                     const newBoard = copyBoard(boardState);
                     newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
                     newBoard[move.from[0]][move.from[1]] = '';
-                    const evall = minimax(newBoard, depth - 1, true, alpha, beta);
-                    minEval = Math.min(minEval, evall);
-                    beta = Math.min(beta, evall);
+                    const eval = minimax(newBoard, depth - 1, true, alpha, beta);
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
                     if (beta <= alpha) break;
                 }
                 return minEval;
@@ -766,8 +798,8 @@
         async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
             if (gameOver) return false;
 
-            // Online mode turn checking
-            if (isOnline && !isRemote && myColorOnline !== turn) {
+            // Check if it's your turn in online mode
+            if (currentMode === 'online' && !isRemote && myColor !== turn) {
                 document.getElementById('statusMsg').innerHTML = "❌ Wait for your opponent!";
                 return false;
             }
@@ -795,13 +827,17 @@
             }
 
             // Send move to opponent in online mode
-            if (isOnline && !isRemote && gameChannel) {
+            if (currentMode === 'online' && !isRemote && conn && conn.open) {
                 const moveData = {
                     type: 'move',
-                    fromRow, fromCol, toRow, toCol,
+                    fromRow: fromRow,
+                    fromCol: fromCol,
+                    toRow: toRow,
+                    toCol: toCol,
                     promotion: isPromotion ? (turn === 'white' ? 'Q' : 'q') : null
                 };
-                gameChannel.postMessage(moveData);
+                conn.send(moveData);
+                console.log('Sent move:', moveData);
             }
 
             // Check game state
@@ -851,14 +887,17 @@
         }
 
         function updateUI() {
-            document.getElementById('offcanvasTurnPiece').innerHTML = turn === 'white' ? '♔' : '♚';
-            document.getElementById('offcanvasTurnText').innerText = turn === 'white' ? "White's Turn" : "Black's Turn";
+            const turnPieceElem = document.getElementById('offcanvasTurnPiece');
+            const turnTextElem = document.getElementById('offcanvasTurnText');
+            turnPieceElem.innerHTML = turn === 'white' ? '♔' : '♚';
+            turnTextElem.innerText = turn === 'white' ? "White's Turn" : "Black's Turn";
 
-            if (isOnline && !gameOver) {
-                if (myColorOnline === turn) {
+            // Also update main status if needed
+            if (!gameOver && currentMode === 'online') {
+                if (myColor === turn) {
                     document.getElementById('statusMsg').innerHTML = "🎮 Your turn! Make a move";
                 } else {
-                    document.getElementById('statusMsg').innerHTML = "⏳ Waiting for opponent...";
+                    document.getElementById('statusMsg').innerHTML = "🎮 Waiting for opponent...";
                 }
             }
         }
@@ -874,7 +913,7 @@
                 ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
                 ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
             ];
-            turn = (isOnline && myColorOnline) ? myColorOnline : 'white';
+            turn = (currentMode === 'online' && myColor) ? myColor : 'white';
             gameOver = false;
             winner = null;
             selectedRow = null;
@@ -884,11 +923,6 @@
             renderBoard();
 
             if (currentMode === 'computer' && turn === 'black') setTimeout(() => aiMove(), 200);
-
-            // Send reset in online mode
-            if (isOnline && gameChannel) {
-                gameChannel.postMessage({ type: 'reset' });
-            }
         }
 
         function renderBoard() {
@@ -907,7 +941,10 @@
 
                     if (selectedRow === i && selectedCol === j) squareDiv.classList.add('selected');
                     if (lastMove && ((lastMove.from[0] === i && lastMove.from[1] === j) || (lastMove.to[0] === i && lastMove.to[1] === j))) squareDiv.classList.add('last-move');
-                    if (validMoves.some(([r, c]) => r === i && c === j)) squareDiv.classList.add('valid-move');
+                    if (validMoves.some(([r, c]) => r === i && c === j)) {
+                        squareDiv.classList.add('valid-move');
+                        if (piece !== '') squareDiv.classList.add('capture-move');
+                    }
                     if (!gameOver && piece && piece.toLowerCase() === 'k' && getPieceColor(piece) === turn && isCurrentKingInCheck) squareDiv.classList.add('in-check');
 
                     const pieceSpan = document.createElement('span');
@@ -959,99 +996,138 @@
             }
         }
 
-        // ============ ONLINE MODE USING BROADCAST CHANNEL ============
-        function createOnlineGame() {
-            if (gameChannel) {
-                gameChannel.close();
-            }
+        // Online Multiplayer Functions
+        async function createGame() {
+            if (peer) peer.destroy();
 
-            const gameId = Math.random().toString(36).substring(2, 10);
-            const gameLink = `${window.location.href.split('#')[0].split('?')[0]}?game=${gameId}`;
+            const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('offcanvasRoomDisplay').textContent = `🎮 Your Code: ${gameId}`;
+            document.getElementById('offcanvasRoomDisplay').style.display = 'block';
 
-            document.getElementById('gameLinkDisplay').innerHTML = `🔗 ${gameLink}`;
-            document.getElementById('gameLinkDiv').style.display = 'block';
-            document.getElementById('connectionStatus').innerHTML = '🟡 Waiting for opponent to join... Share the link!';
-
-            gameChannel = new BroadcastChannel(`chess_${gameId}`);
-            myColorOnline = 'white';
-            turn = 'white';
-            isOnline = true;
-            currentMode = 'online';
-
-            gameChannel.onmessage = async (event) => {
-                const data = event.data;
-                if (data.type === 'move') {
-                    await makeMove(data.fromRow, data.fromCol, data.toRow, data.toCol, true);
-                    renderBoard();
-                    updateUI();
-                } else if (data.type === 'reset') {
-                    resetGame();
-                } else if (data.type === 'join') {
-                    document.getElementById('connectionStatus').innerHTML = '🟢 Connected! You are WHITE';
-                    document.getElementById('statusMsg').innerHTML = '🎮 Opponent joined! You move first.';
+            peer = new Peer(gameId, {
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ]
                 }
-            };
+            });
 
-            // Announce we're ready
-            setTimeout(() => {
-                gameChannel.postMessage({ type: 'join' });
-            }, 500);
+            peer.on('open', () => {
+                myColor = 'white';
+                turn = 'white';
+                currentMode = 'online';
+                document.getElementById('statusMsg').innerHTML = `✅ Game created! Share code: ${gameId}`;
+                document.getElementById('offcanvasConnectionStatus').innerHTML = '🟡 Waiting for opponent...';
+                document.getElementById('offcanvasConnectionStatus').style.color = '#ffd966';
+                resetGame();
+                updateUI();
+            });
 
-            resetGame();
-            closeOffcanvas();
+            peer.on('connection', (connection) => {
+                conn = connection;
+                onlineConnected = true;
+                document.getElementById('offcanvasConnectionStatus').innerHTML = '🟢 Connected! You are WHITE';
+                document.getElementById('offcanvasConnectionStatus').style.color = '#4caf50';
+                document.getElementById('statusMsg').innerHTML = '🎮 Opponent joined! You move first.';
+
+                conn.on('data', async (data) => {
+                    console.log('Received data:', data);
+                    if (data.type === 'move') {
+                        // Apply opponent's move
+                        await makeMove(data.fromRow, data.fromCol, data.toRow, data.toCol, true);
+                        renderBoard();
+                        updateUI();
+                    } else if (data.type === 'reset') {
+                        resetGame();
+                    }
+                });
+
+                conn.on('close', () => {
+                    onlineConnected = false;
+                    document.getElementById('offcanvasConnectionStatus').innerHTML = '🔴 Disconnected';
+                    document.getElementById('offcanvasConnectionStatus').style.color = '#f44336';
+                    document.getElementById('statusMsg').innerHTML = '❌ Opponent disconnected!';
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                document.getElementById('statusMsg').innerHTML = `❌ Error: ${err}`;
+            });
         }
 
-        function checkForGameLink() {
-            const params = new URLSearchParams(window.location.search);
-            const gameId = params.get('game');
-            if (gameId) {
-                joinOnlineGame(gameId);
-            }
-        }
-
-        function joinOnlineGame(gameId) {
-            if (gameChannel) {
-                gameChannel.close();
+        async function joinGame() {
+            const gameId = document.getElementById('offcanvasRoomCode').value.trim().toUpperCase();
+            if (!gameId) {
+                document.getElementById('statusMsg').innerHTML = "❌ Enter a game code!";
+                return;
             }
 
-            gameChannel = new BroadcastChannel(`chess_${gameId}`);
-            myColorOnline = 'black';
-            turn = 'black';
-            isOnline = true;
-            currentMode = 'online';
+            if (peer) peer.destroy();
 
-            gameChannel.onmessage = async (event) => {
-                const data = event.data;
-                if (data.type === 'move') {
-                    await makeMove(data.fromRow, data.fromCol, data.toRow, data.toCol, true);
-                    renderBoard();
-                    updateUI();
-                } else if (data.type === 'reset') {
-                    resetGame();
+            peer = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ]
                 }
-            };
+            });
 
-            document.getElementById('connectionStatus').innerHTML = '🟢 Connected! You are BLACK';
-            document.getElementById('statusMsg').innerHTML = '🎮 Connected! Waiting for white to move...';
-            document.getElementById('gameLinkDiv').style.display = 'none';
+            peer.on('open', () => {
+                conn = peer.connect(gameId);
+                myColor = 'black';
+                turn = 'black';
+                currentMode = 'online';
+                document.getElementById('offcanvasConnectionStatus').innerHTML = '🟡 Connecting...';
 
-            resetGame();
-            closeOffcanvas();
+                conn.on('open', () => {
+                    onlineConnected = true;
+                    document.getElementById('offcanvasConnectionStatus').innerHTML = '🟢 Connected! You are BLACK';
+                    document.getElementById('offcanvasConnectionStatus').style.color = '#4caf50';
+                    document.getElementById('statusMsg').innerHTML = '🎮 Connected! Waiting for white to move...';
+                    resetGame();
+                    updateUI();
+                });
 
-            // Remove the parameter from URL without reload
-            window.history.replaceState({}, document.title, window.location.pathname);
+                conn.on('data', async (data) => {
+                    console.log('Received data:', data);
+                    if (data.type === 'move') {
+                        await makeMove(data.fromRow, data.fromCol, data.toRow, data.toCol, true);
+                        renderBoard();
+                        updateUI();
+                    } else if (data.type === 'reset') {
+                        resetGame();
+                    }
+                });
+
+                conn.on('close', () => {
+                    onlineConnected = false;
+                    document.getElementById('offcanvasConnectionStatus').innerHTML = '🔴 Disconnected';
+                    document.getElementById('offcanvasConnectionStatus').style.color = '#f44336';
+                    document.getElementById('statusMsg').innerHTML = '❌ Opponent disconnected!';
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                document.getElementById('statusMsg').innerHTML = `❌ Failed to join: ${err}`;
+            });
         }
 
-        function disconnectOnline() {
-            if (gameChannel) {
-                gameChannel.close();
-                gameChannel = null;
-            }
-            isOnline = false;
-            myColorOnline = null;
+        function disconnectGame() {
+            if (conn) conn.close();
+            if (peer) peer.destroy();
+            peer = null;
+            conn = null;
+            onlineConnected = false;
+            myColor = null;
             currentMode = 'computer';
-            document.getElementById('gameLinkDiv').style.display = 'none';
-            document.getElementById('connectionStatus').innerHTML = '';
+            document.getElementById('offcanvasRoomDisplay').style.display = 'none';
+            document.getElementById('offcanvasConnectionStatus').innerHTML = '';
             document.getElementById('statusMsg').innerHTML = '🤖 Back to AI mode';
             resetGame();
             updateUI();
@@ -1061,32 +1137,35 @@
             difficulty = level;
             resetGame();
             document.getElementById('statusMsg').innerHTML = `🎮 Difficulty set to ${level.toUpperCase()}`;
+            // Update active button styling
             document.querySelectorAll('#offcanvasEasy, #offcanvasMedium, #offcanvasHard').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`).classList.add('active');
+            if (level === 'easy') document.getElementById('offcanvasEasy').classList.add('active');
+            if (level === 'medium') document.getElementById('offcanvasMedium').classList.add('active');
+            if (level === 'hard') document.getElementById('offcanvasHard').classList.add('active');
         }
 
         function setGameMode(mode) {
-            if (isOnline) disconnectOnline();
+            if (currentMode === 'online') disconnectGame();
             currentMode = mode;
+            myColor = null;
             turn = 'white';
             if (mode === 'computer') {
-                document.getElementById('statusMsg').innerHTML = '🤖 VS Computer Mode';
+                document.getElementById('statusMsg').innerHTML = '🤖 VS Computer Mode - Make your move!';
             } else {
-                document.getElementById('statusMsg').innerHTML = '👥 Local 2 Player Mode';
+                document.getElementById('statusMsg').innerHTML = '👥 Local 2 Player Mode - Take turns!';
             }
             resetGame();
             updateUI();
         }
 
-        function copyGameLink() {
-            const link = document.getElementById('gameLinkDisplay').innerText.replace('🔗 ', '');
-            navigator.clipboard.writeText(link);
-            document.getElementById('statusMsg').innerHTML = '✅ Link copied! Send to your friend!';
+        // Offcanvas controls
+        function openOffcanvas() {
+            document.getElementById('offcanvas').classList.add('open');
         }
 
-        // Offcanvas controls
-        function openOffcanvas() { document.getElementById('offcanvas').classList.add('open'); }
-        function closeOffcanvas() { document.getElementById('offcanvas').classList.remove('open'); }
+        function closeOffcanvas() {
+            document.getElementById('offcanvas').classList.remove('open');
+        }
 
         // Event Listeners
         document.querySelectorAll('.promo-piece').forEach(el => {
@@ -1096,10 +1175,9 @@
         document.getElementById('menuBtn').addEventListener('click', openOffcanvas);
         document.getElementById('closeMenuBtn').addEventListener('click', closeOffcanvas);
 
-        document.getElementById('createGameBtn').addEventListener('click', () => { createOnlineGame(); closeOffcanvas(); });
-        document.getElementById('copyLinkBtn').addEventListener('click', copyGameLink);
-        document.getElementById('offcanvasResetOnline').addEventListener('click', () => { resetGame(); });
-        document.getElementById('offcanvasDisconnect').addEventListener('click', () => { disconnectOnline(); closeOffcanvas(); });
+        document.getElementById('offcanvasCreateRoom').addEventListener('click', () => { createGame(); closeOffcanvas(); });
+        document.getElementById('offcanvasJoinRoom').addEventListener('click', () => { joinGame(); closeOffcanvas(); });
+        document.getElementById('offcanvasDisconnect').addEventListener('click', () => { disconnectGame(); closeOffcanvas(); });
         document.getElementById('offcanvasModeAI').addEventListener('click', () => { setGameMode('computer'); closeOffcanvas(); });
         document.getElementById('offcanvasModeFriend').addEventListener('click', () => { setGameMode('friend'); closeOffcanvas(); });
         document.getElementById('offcanvasEasy').addEventListener('click', () => { setDifficultyLevel('easy'); closeOffcanvas(); });
@@ -1107,8 +1185,16 @@
         document.getElementById('offcanvasHard').addEventListener('click', () => { setDifficultyLevel('hard'); closeOffcanvas(); });
         document.getElementById('offcanvasReset').addEventListener('click', () => { resetGame(); closeOffcanvas(); });
 
-        // Check for game link on load
-        checkForGameLink();
+        // Close offcanvas when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            const offcanvas = document.getElementById('offcanvas');
+            const menuBtn = document.getElementById('menuBtn');
+            if (window.innerWidth < 1024 && offcanvas.classList.contains('open')) {
+                if (!offcanvas.contains(e.target) && !menuBtn.contains(e.target)) {
+                    closeOffcanvas();
+                }
+            }
+        });
 
         renderBoard();
         updateUI();
