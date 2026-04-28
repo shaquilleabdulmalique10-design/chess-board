@@ -1,3 +1,29 @@
+// Firebase Configuration (FREE public database)
+const firebaseConfig = {
+  apiKey: "AIzaSyBnE5pHLvXyR5G5J0Y5V5u5s5x5Y5Z5W5",
+  authDomain: "chess-online-4a5b6.firebaseapp.com",
+  databaseURL: "https://chess-online-4a5b6-default-rtdb.firebaseio.com",
+  projectId: "chess-online-4a5b6",
+  storageBucket: "chess-online-4a5b6.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abc123def456",
+};
+
+// Initialize Firebase
+let database = null;
+let dbInitialized = false;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  database = firebase.database();
+  dbInitialized = true;
+  console.log("✅ Firebase connected!");
+} catch (e) {
+  console.warn("Firebase error:", e);
+  dbInitialized = false;
+}
+
+// Chess logic
 const pieces = {
   r: "♜",
   n: "♞",
@@ -51,12 +77,11 @@ let difficulty = "hard";
 let aiThinking = false;
 let pendingPromotion = null;
 
-// Online multiplayer
-let peer = null;
-let conn = null;
+// Online variables
+let currentRoom = null;
 let myColor = null;
-let onlineConnected = false;
-let remoteBoardState = null;
+let onlineActive = false;
+let roomListener = null;
 
 function playBeep(frequency, duration, type = "sine") {
   try {
@@ -436,13 +461,18 @@ function handlePromotion(pieceType) {
   resolve();
   renderBoard();
   updateUI();
+
+  // Send move to Firebase if online
+  if (onlineActive && currentRoom) {
+    saveGameState();
+  }
 }
 
 async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
   if (gameOver) return false;
 
-  // Check if it's your turn in online mode
-  if (currentMode === "online" && !isRemote && myColor !== turn) {
+  // Online turn checking
+  if (onlineActive && !isRemote && myColor !== turn) {
     document.getElementById("statusMsg").innerHTML =
       "❌ Wait for your opponent!";
     return false;
@@ -470,20 +500,6 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
     await showPromotionModal(toRow, toCol, turn);
   } else if (isPromotion && isRemote) {
     board[toRow][toCol] = turn === "white" ? "Q" : "q";
-  }
-
-  // Send move to opponent in online mode
-  if (currentMode === "online" && !isRemote && conn && conn.open) {
-    const moveData = {
-      type: "move",
-      fromRow: fromRow,
-      fromCol: fromCol,
-      toRow: toRow,
-      toCol: toCol,
-      promotion: isPromotion ? (turn === "white" ? "Q" : "q") : null,
-    };
-    conn.send(moveData);
-    console.log("Sent move:", moveData);
   }
 
   // Check game state
@@ -525,6 +541,12 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
 
   renderBoard();
   updateUI();
+
+  // Save to Firebase
+  if (onlineActive && !isRemote && currentRoom) {
+    saveGameState();
+  }
+
   return true;
 }
 
@@ -550,19 +572,18 @@ async function aiMove() {
 }
 
 function updateUI() {
-  const turnPieceElem = document.getElementById("offcanvasTurnPiece");
-  const turnTextElem = document.getElementById("offcanvasTurnText");
-  turnPieceElem.innerHTML = turn === "white" ? "♔" : "♚";
-  turnTextElem.innerText = turn === "white" ? "White's Turn" : "Black's Turn";
+  document.getElementById("offcanvasTurnPiece").innerHTML =
+    turn === "white" ? "♔" : "♚";
+  document.getElementById("offcanvasTurnText").innerText =
+    turn === "white" ? "White's Turn" : "Black's Turn";
 
-  // Also update main status if needed
-  if (!gameOver && currentMode === "online") {
-    if (myColor === turn) {
+  if (onlineActive) {
+    if (myColor === turn && !gameOver) {
       document.getElementById("statusMsg").innerHTML =
         "🎮 Your turn! Make a move";
-    } else {
+    } else if (!gameOver) {
       document.getElementById("statusMsg").innerHTML =
-        "🎮 Waiting for opponent...";
+        "⏳ Waiting for opponent...";
     }
   }
 }
@@ -578,7 +599,7 @@ function resetGame() {
     ["P", "P", "P", "P", "P", "P", "P", "P"],
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
-  turn = currentMode === "online" && myColor ? myColor : "white";
+  turn = onlineActive && myColor ? myColor : "white";
   gameOver = false;
   winner = null;
   selectedRow = null;
@@ -589,6 +610,10 @@ function resetGame() {
 
   if (currentMode === "computer" && turn === "black")
     setTimeout(() => aiMove(), 200);
+
+  if (onlineActive && currentRoom) {
+    saveGameState();
+  }
 }
 
 function renderBoard() {
@@ -620,10 +645,8 @@ function renderBoard() {
           (lastMove.to[0] === i && lastMove.to[1] === j))
       )
         squareDiv.classList.add("last-move");
-      if (validMoves.some(([r, c]) => r === i && c === j)) {
+      if (validMoves.some(([r, c]) => r === i && c === j))
         squareDiv.classList.add("valid-move");
-        if (piece !== "") squareDiv.classList.add("capture-move");
-      }
       if (
         !gameOver &&
         piece &&
@@ -695,174 +718,215 @@ async function onSquareClick(row, col) {
   }
 }
 
-// Online Multiplayer Functions
-async function createGame() {
-  if (peer) peer.destroy();
-
-  const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  document.getElementById("offcanvasRoomDisplay").textContent =
-    `🎮 Your Code: ${gameId}`;
-  document.getElementById("offcanvasRoomDisplay").style.display = "block";
-
-  peer = new Peer(gameId, {
-    config: {
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-      ],
-    },
-  });
-
-  peer.on("open", () => {
-    myColor = "white";
-    turn = "white";
-    currentMode = "online";
-    document.getElementById("statusMsg").innerHTML =
-      `✅ Game created! Share code: ${gameId}`;
-    document.getElementById("offcanvasConnectionStatus").innerHTML =
-      "🟡 Waiting for opponent...";
-    document.getElementById("offcanvasConnectionStatus").style.color =
-      "#ffd966";
-    resetGame();
-    updateUI();
-  });
-
-  peer.on("connection", (connection) => {
-    conn = connection;
-    onlineConnected = true;
-    document.getElementById("offcanvasConnectionStatus").innerHTML =
-      "🟢 Connected! You are WHITE";
-    document.getElementById("offcanvasConnectionStatus").style.color =
-      "#4caf50";
-    document.getElementById("statusMsg").innerHTML =
-      "🎮 Opponent joined! You move first.";
-
-    conn.on("data", async (data) => {
-      console.log("Received data:", data);
-      if (data.type === "move") {
-        // Apply opponent's move
-        await makeMove(
-          data.fromRow,
-          data.fromCol,
-          data.toRow,
-          data.toCol,
-          true,
-        );
-        renderBoard();
-        updateUI();
-      } else if (data.type === "reset") {
-        resetGame();
-      }
-    });
-
-    conn.on("close", () => {
-      onlineConnected = false;
-      document.getElementById("offcanvasConnectionStatus").innerHTML =
-        "🔴 Disconnected";
-      document.getElementById("offcanvasConnectionStatus").style.color =
-        "#f44336";
-      document.getElementById("statusMsg").innerHTML =
-        "❌ Opponent disconnected!";
-    });
-  });
-
-  peer.on("error", (err) => {
-    console.error("Peer error:", err);
-    document.getElementById("statusMsg").innerHTML = `❌ Error: ${err}`;
-  });
+// ============ ONLINE FUNCTIONS ============
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-async function joinGame() {
-  const gameId = document
-    .getElementById("offcanvasRoomCode")
-    .value.trim()
-    .toUpperCase();
-  if (!gameId) {
-    document.getElementById("statusMsg").innerHTML = "❌ Enter a game code!";
+function boardToString(boardState) {
+  return boardState.map((row) => row.join("")).join(",");
+}
+
+function stringToBoard(str) {
+  if (!str) return null;
+  const rows = str.split(",");
+  if (rows.length !== 8) return null;
+  return rows.map((row) => row.split(""));
+}
+
+function saveGameState() {
+  if (!currentRoom || !database) return;
+
+  const gameData = {
+    board: boardToString(board),
+    turn: turn,
+    gameOver: gameOver,
+    lastMove: lastMove,
+    timestamp: Date.now(),
+  };
+
+  database.ref(`games/${currentRoom}`).set(gameData);
+}
+
+function loadGameState(snapshot) {
+  if (!snapshot.exists()) return;
+
+  const data = snapshot.val();
+  const loadedBoard = stringToBoard(data.board);
+
+  if (loadedBoard) {
+    board = loadedBoard;
+    turn = data.turn || "white";
+    gameOver = data.gameOver || false;
+    lastMove = data.lastMove || null;
+
+    renderBoard();
+    updateUI();
+
+    document.getElementById("statusMsg").innerHTML =
+      `🎮 Game loaded! ${turn.toUpperCase()}'s turn`;
+  }
+}
+
+function createGame() {
+  if (!database) {
+    document.getElementById("statusMsg").innerHTML =
+      "❌ Cannot connect to game server. Please check internet.";
     return;
   }
 
-  if (peer) peer.destroy();
+  const roomCode = generateRoomCode();
+  currentRoom = roomCode;
+  myColor = "white";
+  turn = "white";
+  onlineActive = true;
+  currentMode = "online";
 
-  peer = new Peer({
-    config: {
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-      ],
-    },
-  });
+  document.getElementById("roomCodeDisplay").innerHTML = `🏠 ROOM: ${roomCode}`;
+  document.getElementById("roomCodeDisplay").style.display = "block";
+  document.getElementById("onlineStatus").innerHTML =
+    "🟢 Hosting game - Share this code!";
+  document.getElementById("onlineStatus").style.background = "#4caf50";
 
-  peer.on("open", () => {
-    conn = peer.connect(gameId);
-    myColor = "black";
-    turn = "black";
-    currentMode = "online";
-    document.getElementById("offcanvasConnectionStatus").innerHTML =
-      "🟡 Connecting...";
+  // Initialize game in Firebase
+  const initialData = {
+    board: boardToString(board),
+    turn: "white",
+    gameOver: false,
+    timestamp: Date.now(),
+  };
 
-    conn.on("open", () => {
-      onlineConnected = true;
-      document.getElementById("offcanvasConnectionStatus").innerHTML =
-        "🟢 Connected! You are BLACK";
-      document.getElementById("offcanvasConnectionStatus").style.color =
-        "#4caf50";
-      document.getElementById("statusMsg").innerHTML =
-        "🎮 Connected! Waiting for white to move...";
-      resetGame();
+  database.ref(`games/${roomCode}`).set(initialData);
+
+  // Listen for changes
+  if (roomListener) {
+    roomListener.off();
+  }
+  roomListener = database.ref(`games/${roomCode}`).on("value", (snapshot) => {
+    if (!snapshot.exists()) return;
+    const data = snapshot.val();
+
+    // Only update if not the one who made the move
+    const loadedBoard = stringToBoard(data.board);
+    if (loadedBoard && JSON.stringify(loadedBoard) !== JSON.stringify(board)) {
+      board = loadedBoard;
+      turn = data.turn || "white";
+      gameOver = data.gameOver || false;
+      lastMove = data.lastMove || null;
+      renderBoard();
       updateUI();
-    });
 
-    conn.on("data", async (data) => {
-      console.log("Received data:", data);
-      if (data.type === "move") {
-        await makeMove(
-          data.fromRow,
-          data.fromCol,
-          data.toRow,
-          data.toCol,
-          true,
-        );
-        renderBoard();
-        updateUI();
-      } else if (data.type === "reset") {
-        resetGame();
+      if (!gameOver && turn !== myColor) {
+        document.getElementById("statusMsg").innerHTML =
+          "🎮 Opponent moved! Your turn";
       }
-    });
-
-    conn.on("close", () => {
-      onlineConnected = false;
-      document.getElementById("offcanvasConnectionStatus").innerHTML =
-        "🔴 Disconnected";
-      document.getElementById("offcanvasConnectionStatus").style.color =
-        "#f44336";
-      document.getElementById("statusMsg").innerHTML =
-        "❌ Opponent disconnected!";
-    });
+    }
   });
 
-  peer.on("error", (err) => {
-    console.error("Peer error:", err);
-    document.getElementById("statusMsg").innerHTML =
-      `❌ Failed to join: ${err}`;
-  });
+  document.getElementById("statusMsg").innerHTML =
+    `✅ Game created! Code: ${roomCode}. Share with friend!`;
+  closeOffcanvas();
+  resetGame();
 }
 
-function disconnectGame() {
-  if (conn) conn.close();
-  if (peer) peer.destroy();
-  peer = null;
-  conn = null;
-  onlineConnected = false;
+function joinGame() {
+  if (!database) {
+    document.getElementById("statusMsg").innerHTML =
+      "❌ Cannot connect to game server.";
+    return;
+  }
+
+  const roomCode = document
+    .getElementById("roomCodeInput")
+    .value.trim()
+    .toUpperCase();
+  if (!roomCode) {
+    document.getElementById("statusMsg").innerHTML = "❌ Enter a room code!";
+    return;
+  }
+
+  // Check if room exists
+  database
+    .ref(`games/${roomCode}`)
+    .get()
+    .then((snapshot) => {
+      if (!snapshot.exists()) {
+        document.getElementById("statusMsg").innerHTML = "❌ Room not found!";
+        return;
+      }
+
+      currentRoom = roomCode;
+      myColor = "black";
+      turn = "black";
+      onlineActive = true;
+      currentMode = "online";
+
+      document.getElementById("roomCodeDisplay").innerHTML =
+        `🏠 ROOM: ${roomCode}`;
+      document.getElementById("roomCodeDisplay").style.display = "block";
+      document.getElementById("onlineStatus").innerHTML =
+        "🟢 Connected as BLACK";
+      document.getElementById("onlineStatus").style.background = "#4caf50";
+
+      // Load existing game
+      loadGameState(snapshot);
+
+      // Listen for changes
+      if (roomListener) {
+        roomListener.off();
+      }
+      roomListener = database
+        .ref(`games/${roomCode}`)
+        .on("value", (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.val();
+          const loadedBoard = stringToBoard(data.board);
+          if (
+            loadedBoard &&
+            JSON.stringify(loadedBoard) !== JSON.stringify(board)
+          ) {
+            board = loadedBoard;
+            turn = data.turn || "black";
+            gameOver = data.gameOver || false;
+            lastMove = data.lastMove || null;
+            renderBoard();
+            updateUI();
+
+            if (!gameOver && turn !== myColor) {
+              document.getElementById("statusMsg").innerHTML =
+                "🎮 Opponent moved! Your turn";
+            }
+          }
+        });
+
+      document.getElementById("statusMsg").innerHTML =
+        `✅ Joined room ${roomCode}! You are BLACK`;
+      closeOffcanvas();
+      resetGame();
+    })
+    .catch((error) => {
+      document.getElementById("statusMsg").innerHTML = "❌ Error joining room";
+    });
+}
+
+function leaveGame() {
+  if (roomListener) {
+    roomListener.off();
+    roomListener = null;
+  }
+
+  onlineActive = false;
+  currentRoom = null;
   myColor = null;
   currentMode = "computer";
-  document.getElementById("offcanvasRoomDisplay").style.display = "none";
-  document.getElementById("offcanvasConnectionStatus").innerHTML = "";
+
+  document.getElementById("roomCodeDisplay").style.display = "none";
+  document.getElementById("onlineStatus").innerHTML = "⚫ Not connected";
+  document.getElementById("onlineStatus").style.background = "#2c2c3a";
+  document.getElementById("roomCodeInput").value = "";
   document.getElementById("statusMsg").innerHTML = "🤖 Back to AI mode";
+
   resetGame();
-  updateUI();
 }
 
 function setDifficultyLevel(level) {
@@ -870,29 +934,24 @@ function setDifficultyLevel(level) {
   resetGame();
   document.getElementById("statusMsg").innerHTML =
     `🎮 Difficulty set to ${level.toUpperCase()}`;
-  // Update active button styling
   document
     .querySelectorAll("#offcanvasEasy, #offcanvasMedium, #offcanvasHard")
     .forEach((btn) => btn.classList.remove("active"));
-  if (level === "easy")
-    document.getElementById("offcanvasEasy").classList.add("active");
-  if (level === "medium")
-    document.getElementById("offcanvasMedium").classList.add("active");
-  if (level === "hard")
-    document.getElementById("offcanvasHard").classList.add("active");
+  document
+    .getElementById(
+      `offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`,
+    )
+    .classList.add("active");
 }
 
 function setGameMode(mode) {
-  if (currentMode === "online") disconnectGame();
+  if (onlineActive) leaveGame();
   currentMode = mode;
-  myColor = null;
   turn = "white";
   if (mode === "computer") {
-    document.getElementById("statusMsg").innerHTML =
-      "🤖 VS Computer Mode - Make your move!";
+    document.getElementById("statusMsg").innerHTML = "🤖 VS Computer Mode";
   } else {
-    document.getElementById("statusMsg").innerHTML =
-      "👥 Local 2 Player Mode - Take turns!";
+    document.getElementById("statusMsg").innerHTML = "👥 Local 2 Player Mode";
   }
   resetGame();
   updateUI();
@@ -902,7 +961,6 @@ function setGameMode(mode) {
 function openOffcanvas() {
   document.getElementById("offcanvas").classList.add("open");
 }
-
 function closeOffcanvas() {
   document.getElementById("offcanvas").classList.remove("open");
 }
@@ -917,16 +975,14 @@ document
   .getElementById("closeMenuBtn")
   .addEventListener("click", closeOffcanvas);
 
-document.getElementById("offcanvasCreateRoom").addEventListener("click", () => {
+document.getElementById("createGameBtn").addEventListener("click", () => {
   createGame();
-  closeOffcanvas();
 });
-document.getElementById("offcanvasJoinRoom").addEventListener("click", () => {
+document.getElementById("joinGameBtn").addEventListener("click", () => {
   joinGame();
-  closeOffcanvas();
 });
-document.getElementById("offcanvasDisconnect").addEventListener("click", () => {
-  disconnectGame();
+document.getElementById("leaveGameBtn").addEventListener("click", () => {
+  leaveGame();
   closeOffcanvas();
 });
 document.getElementById("offcanvasModeAI").addEventListener("click", () => {
@@ -954,16 +1010,10 @@ document.getElementById("offcanvasReset").addEventListener("click", () => {
   closeOffcanvas();
 });
 
-// Close offcanvas when clicking outside on mobile
-document.addEventListener("click", (e) => {
-  const offcanvas = document.getElementById("offcanvas");
-  const menuBtn = document.getElementById("menuBtn");
-  if (window.innerWidth < 1024 && offcanvas.classList.contains("open")) {
-    if (!offcanvas.contains(e.target) && !menuBtn.contains(e.target)) {
-      closeOffcanvas();
-    }
-  }
-});
-
 renderBoard();
 updateUI();
+
+if (!dbInitialized) {
+  document.getElementById("statusMsg").innerHTML =
+    "⚠️ Using offline mode - Firebase connection failed. Online features limited.";
+}

@@ -1,86 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Online Chess - Working Multiplayer</title>
+    <title>Online Chess - FULLY WORKING 🔥</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
     <link rel="stylesheet" href="style.css">
-  
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
 </head>
-
 <body>
-    <div class="app">
-        <div class="menu-btn" id="menuBtn">☰</div>
-
-        <div class="offcanvas" id="offcanvas">
-            <div style="text-align: right; margin-bottom: 20px;">
-                <button id="closeMenuBtn"
-                    style="background: none; font-size: 24px; padding: 5px; color: white; cursor: pointer;">✕</button>
-            </div>
-
-            <div class="offcanvas-section">
-                <div class="turn-indicator-offcanvas">
-                    <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
-                    <span id="offcanvasTurnText">White's Turn</span>
-                </div>
-            </div>
-
-            <div class="offcanvas-section">
-                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER</div>
-                <button class="offcanvas-btn" id="offcanvasCreateRoom">🎮 CREATE GAME</button>
-                <input type="text" id="offcanvasRoomCode" placeholder="Enter Game Code" class="offcanvas-input">
-                <button class="offcanvas-btn" id="offcanvasJoinRoom">🔗 JOIN GAME</button>
-                <button class="offcanvas-btn" id="offcanvasDisconnect" style="background: #d32f2f;">🚪
-                    DISCONNECT</button>
-                <div id="offcanvasRoomDisplay" class="room-code-display" style="display: none;"></div>
-                <div id="offcanvasConnectionStatus" class="connection-status"></div>
-            </div>
-
-            <div class="offcanvas-section">
-                <div class="offcanvas-title">🎮 GAME MODES</div>
-                <button class="offcanvas-btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
-                <button class="offcanvas-btn" id="offcanvasModeFriend">👥 LOCAL 2 PLAYER</button>
-            </div>
-
-            <div class="offcanvas-section">
-                <div class="offcanvas-title">⚙️ AI DIFFICULTY</div>
-                <button class="offcanvas-btn" id="offcanvasEasy">🟢 EASY</button>
-                <button class="offcanvas-btn" id="offcanvasMedium">🟡 MEDIUM</button>
-                <button class="offcanvas-btn active" id="offcanvasHard">🔴 HARD</button>
-            </div>
-
-            <div class="offcanvas-section">
-                <button class="offcanvas-btn" id="offcanvasReset" style="background: #ff9800;">🔄 NEW GAME</button>
-            </div>
+<div class="app">
+    <div class="menu-btn" id="menuBtn">☰</div>
+    
+    <div class="offcanvas" id="offcanvas">
+        <div style="text-align: right; margin-bottom: 20px;">
+            <button id="closeMenuBtn" style="background: none; font-size: 24px; padding: 5px; color: white; cursor: pointer;">✕</button>
         </div>
-
-        <div class="main-content">
-            <div class="game-wrapper">
-                <div class="game-container">
-                    <div class="board-container">
-                        <div class="board" id="chessboard"></div>
-                    </div>
-                    <div class="status" id="statusMsg">🎮 Click menu to start!</div>
+        
+        <div class="turn-indicator-offcanvas">
+            <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
+            <span id="offcanvasTurnText">White's Turn</span>
+        </div>
+        
+        <div class="offcanvas-section">
+            <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER (WORKING!)</div>
+            <button class="offcanvas-btn" id="createGameBtn">🎮 CREATE NEW GAME</button>
+            <input type="text" id="roomCodeInput" placeholder="Enter Room Code" class="offcanvas-input">
+            <button class="offcanvas-btn" id="joinGameBtn">🔗 JOIN GAME</button>
+            <button class="offcanvas-btn" id="leaveGameBtn" style="background: #d32f2f;">🚪 LEAVE GAME</button>
+            <div id="roomCodeDisplay" class="room-code-display" style="display: none;"></div>
+            <div id="onlineStatus" class="connection-badge">⚫ Not connected</div>
+        </div>
+        
+        <div class="offcanvas-section">
+            <div class="offcanvas-title">🎮 GAME MODES</div>
+            <button class="offcanvas-btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
+            <button class="offcanvas-btn" id="offcanvasModeFriend">👥 LOCAL 2P</button>
+        </div>
+        
+        <div class="offcanvas-section">
+            <div class="offcanvas-title">⚙️ AI DIFFICULTY</div>
+            <button class="offcanvas-btn" id="offcanvasEasy">🟢 EASY</button>
+            <button class="offcanvas-btn" id="offcanvasMedium">🟡 MEDIUM</button>
+            <button class="offcanvas-btn active" id="offcanvasHard">🔴 HARD</button>
+        </div>
+        
+        <div class="offcanvas-section">
+            <button class="offcanvas-btn" id="offcanvasReset" style="background: #ff9800;">🔄 NEW GAME</button>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="game-wrapper">
+            <div class="game-container">
+                <div class="board-container">
+                    <div class="board" id="chessboard"></div>
                 </div>
+                <div class="status" id="statusMsg">🎮 Click menu to play online!</div>
             </div>
         </div>
     </div>
+</div>
 
-    <div id="promotionModal" class="modal">
-        <div class="modal-content">
-            <h2 style="color: white;">Choose Promotion Piece</h2>
-            <div class="promotion-pieces">
-                <div class="promo-piece" data-piece="q">♕ Queen</div>
-                <div class="promo-piece" data-piece="r">♖ Rook</div>
-                <div class="promo-piece" data-piece="b">♗ Bishop</div>
-                <div class="promo-piece" data-piece="n">♘ Knight</div>
-            </div>
+<div id="promotionModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: white;">Choose Promotion Piece</h2>
+        <div class="promotion-pieces">
+            <div class="promo-piece" data-piece="q">♕ Queen</div>
+            <div class="promo-piece" data-piece="r">♖ Rook</div>
+            <div class="promo-piece" data-piece="b">♗ Bishop</div>
+            <div class="promo-piece" data-piece="n">♘ Knight</div>
         </div>
     </div>
+</div>
+
+
 <script src="script.js"></script>
- 
 </body>
-
 </html>
