@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ABDULMALIQUE - Online Chess</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Chess - Fully Responsive + Pawn Promotion</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         * {
@@ -18,7 +18,7 @@
         body {
             min-height: 100vh;
             background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            font-family: 'Segoe UI', 'Poppins', 'Arial', sans-serif;
+            font-family: 'Segoe UI', 'Poppins', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
         }
 
         .app {
@@ -26,15 +26,16 @@
             min-height: 100vh;
         }
 
+        /* Offcanvas Sidebar */
         .offcanvas {
             position: fixed;
             top: 0;
-            left: -300px;
-            width: 300px;
+            left: -280px;
+            width: 280px;
             height: 100%;
             background: rgba(20, 25, 35, 0.98);
             backdrop-filter: blur(20px);
-            transition: left 0.3s ease;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
             padding: 20px;
             box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
@@ -64,8 +65,8 @@
 
         .board-container {
             position: relative;
-            width: min(65vh, 65vw);
-            height: min(65vh, 65vw);
+            width: min(70vh, 70vw);
+            height: min(70vh, 70vw);
         }
 
         .board {
@@ -90,7 +91,7 @@
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
-            font-size: calc(min(65vh, 65vw) / 12);
+            font-size: calc(min(70vh, 70vw) / 12);
         }
 
         .square.light {
@@ -184,6 +185,7 @@
             z-index: 1001;
             font-size: 24px;
             color: white;
+            border: 1px solid rgba(255, 215, 0, 0.3);
         }
 
         .offcanvas-btn {
@@ -197,6 +199,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 14px;
         }
 
         .offcanvas-btn:hover {
@@ -218,6 +221,8 @@
             border-radius: 30px;
             color: white;
             outline: none;
+            font-size: 14px;
+            text-align: center;
             text-transform: uppercase;
         }
 
@@ -236,7 +241,7 @@
 
         .offcanvas-title {
             color: #ffd966;
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 15px;
             padding-bottom: 8px;
             border-bottom: 2px solid #ffd966;
@@ -248,7 +253,7 @@
             border-radius: 40px;
             color: #ffd966;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
             margin-top: 15px;
         }
@@ -258,12 +263,13 @@
             padding: 12px;
             border-radius: 15px;
             font-family: monospace;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             color: #4caf50;
             text-align: center;
             margin: 10px 0;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
+            word-break: break-all;
         }
 
         @media (min-width: 1024px) {
@@ -285,11 +291,35 @@
             }
 
             .board-container {
-                width: min(80vw, 80vh);
-                height: min(80vw, 80vh);
+                width: min(85vw, 85vh);
+                height: min(85vw, 85vh);
+            }
+
+            .game-wrapper {
+                padding: 15px;
             }
         }
 
+        @media (max-width: 640px) {
+            .square {
+                font-size: calc(min(85vw, 85vh) / 12);
+            }
+
+            .offcanvas {
+                width: 260px;
+            }
+
+            .offcanvas-btn {
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+
+            .status {
+                font-size: 10px;
+            }
+        }
+
+        /* ========== RESPONSIVE PROMOTION MODAL ========== */
         .modal {
             display: none;
             position: fixed;
@@ -297,34 +327,66 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 2000;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(8px);
         }
 
         .modal-content {
             background: linear-gradient(135deg, #2c2c3a, #1a1a2a);
-            padding: 30px;
+            padding: 20px;
             border-radius: 30px;
             text-align: center;
             border: 2px solid gold;
+            max-width: 90%;
+            width: 400px;
+            animation: modalPop 0.3s ease;
+        }
+
+        @keyframes modalPop {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h2 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 15px;
         }
 
         .promotion-pieces {
             display: flex;
-            gap: 20px;
+            gap: 12px;
             justify-content: center;
-            margin-top: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
         }
 
         .promo-piece {
-            font-size: 50px;
+            font-size: 45px;
             cursor: pointer;
-            padding: 15px;
+            padding: 12px;
             border-radius: 20px;
             transition: all 0.2s;
             background: rgba(255, 255, 255, 0.1);
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .promo-piece span {
+            display: block;
+            font-size: 12px;
+            margin-top: 5px;
+            color: #ccc;
         }
 
         .promo-piece:hover {
@@ -332,11 +394,32 @@
             background: rgba(255, 215, 0, 0.3);
         }
 
+        @media (max-width: 480px) {
+            .promo-piece {
+                font-size: 35px;
+                padding: 8px;
+                min-width: 55px;
+            }
+
+            .promo-piece span {
+                font-size: 10px;
+            }
+
+            .modal-content {
+                padding: 15px;
+                width: 85%;
+            }
+
+            .modal-content h2 {
+                font-size: 16px;
+            }
+        }
+
         .connection-badge {
             background: #2c2c3a;
             padding: 8px;
             border-radius: 15px;
-            font-size: 12px;
+            font-size: 11px;
             margin-top: 10px;
             text-align: center;
         }
@@ -359,7 +442,7 @@
             </div>
 
             <div class="turn-indicator-offcanvas">
-                <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
+                <span style="font-size: 28px;" id="offcanvasTurnPiece">♔</span>
                 <span id="offcanvasTurnText">White's Turn</span>
             </div>
 
@@ -371,7 +454,7 @@
                     <button class="offcanvas-btn copy-btn" id="copyCodeBtn">📋 COPY CODE</button>
                 </div>
                 <input type="text" id="roomCodeInput" placeholder="Enter Game Code" class="offcanvas-input"
-                    maxlength="8">
+                    maxlength="10">
                 <button class="offcanvas-btn" id="joinGameBtn">🔗 JOIN GAME</button>
                 <button class="offcanvas-btn" id="disconnectBtn" style="background: #d32f2f;">🚪 LEAVE GAME</button>
                 <div id="onlineStatus" class="connection-badge">⚫ Not connected</div>
@@ -407,14 +490,27 @@
         </div>
     </div>
 
+    <!-- RESPONSIVE PROMOTION MODAL -->
     <div id="promotionModal" class="modal">
         <div class="modal-content">
-            <h2 style="color: white;">Choose Promotion Piece</h2>
+            <h2>✨ Choose Promotion Piece ✨</h2>
             <div class="promotion-pieces">
-                <div class="promo-piece" data-piece="q">♕ Queen</div>
-                <div class="promo-piece" data-piece="r">♖ Rook</div>
-                <div class="promo-piece" data-piece="b">♗ Bishop</div>
-                <div class="promo-piece" data-piece="n">♘ Knight</div>
+                <div class="promo-piece" data-piece="q">
+                    ♕
+                    <span>Queen</span>
+                </div>
+                <div class="promo-piece" data-piece="r">
+                    ♖
+                    <span>Rook</span>
+                </div>
+                <div class="promo-piece" data-piece="b">
+                    ♗
+                    <span>Bishop</span>
+                </div>
+                <div class="promo-piece" data-piece="n">
+                    ♘
+                    <span>Knight</span>
+                </div>
             </div>
         </div>
     </div>
@@ -458,7 +554,6 @@
         let peer = null;
         let conn = null;
         let myPeerId = null;
-        let remotePeerId = null;
         let myColor = null;
         let isConnected = false;
 
@@ -700,9 +795,9 @@
                     const newBoard = copyBoard(boardState);
                     newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
                     newBoard[move.from[0]][move.from[1]] = '';
-                    const evall = minimax(newBoard, depth - 1, false, alpha, beta);
-                    maxEval = Math.max(maxEval, evall);
-                    alpha = Math.max(alpha, evall);
+                    const eval = minimax(newBoard, depth - 1, false, alpha, beta);
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
                     if (beta <= alpha) break;
                 }
                 return maxEval;
@@ -718,9 +813,9 @@
                     const newBoard = copyBoard(boardState);
                     newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
                     newBoard[move.from[0]][move.from[1]] = '';
-                    const evall = minimax(newBoard, depth - 1, true, alpha, beta);
-                    minEval = Math.min(minEval, evall);
-                    beta = Math.min(beta, evall);
+                    const eval = minimax(newBoard, depth - 1, true, alpha, beta);
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
                     if (beta <= alpha) break;
                 }
                 return minEval;
@@ -760,10 +855,15 @@
             }
         }
 
+        // RESPONSIVE PROMOTION MODAL
         function showPromotionModal(row, col, color) {
             return new Promise((resolve) => {
                 pendingPromotion = { row, col, color, resolve };
-                document.getElementById('promotionModal').style.display = 'flex';
+                const modal = document.getElementById('promotionModal');
+                modal.style.display = 'flex';
+
+                // Prevent background scrolling
+                document.body.style.overflow = 'hidden';
             });
         }
 
@@ -772,12 +872,17 @@
             const { row, col, color, resolve } = pendingPromotion;
             const newPiece = color === 'white' ? pieceType.toUpperCase() : pieceType.toLowerCase();
             board[row][col] = newPiece;
+
+            // Close modal
             document.getElementById('promotionModal').style.display = 'none';
+            document.body.style.overflow = '';
+
             pendingPromotion = null;
             resolve();
             renderBoard();
             updateUI();
 
+            // Send update in online mode
             if (isConnected && conn) {
                 sendGameState();
             }
@@ -802,9 +907,11 @@
             const isPawn = movingPiece.toLowerCase() === 'p';
             const isPromotion = isPawn && ((turn === 'white' && toRow === 0) || (turn === 'black' && toRow === 7));
 
+            // Execute move
             board[toRow][toCol] = board[fromRow][fromCol];
             board[fromRow][fromCol] = '';
 
+            // Handle promotion with responsive modal
             if (isPromotion && !isRemote) {
                 renderBoard();
                 await showPromotionModal(toRow, toCol, turn);
@@ -923,6 +1030,7 @@
 
                     const pieceSpan = document.createElement('span');
                     pieceSpan.style.fontSize = 'inherit';
+                    pieceSpan.style.display = 'inline-block';
                     if (piece) pieceSpan.className = getPieceColor(piece) === 'white' ? 'piece-white' : 'piece-black';
                     pieceSpan.innerText = pieceChar;
                     squareDiv.appendChild(pieceSpan);
@@ -980,8 +1088,7 @@
                 board: board,
                 turn: turn,
                 gameOver: gameOver,
-                lastMove: lastMove,
-                myColor: myColor
+                lastMove: lastMove
             };
             conn.send(gameData);
         }
@@ -1007,9 +1114,9 @@
                 myPeerId = id;
                 document.getElementById('roomCodeDisplay').innerHTML = `🎮 ${id}`;
                 document.getElementById('gameCodeContainer').style.display = 'block';
-                document.getElementById('onlineStatus').innerHTML = '🟡 Waiting for opponent to join...';
+                document.getElementById('onlineStatus').innerHTML = '🟡 Waiting for opponent...';
                 document.getElementById('onlineStatus').style.background = '#ff9800';
-                document.getElementById('statusMsg').innerHTML = `✅ Game created! Your code: ${id}. Share this with your friend!`;
+                document.getElementById('statusMsg').innerHTML = `✅ Game created! Code: ${id}`;
 
                 myColor = 'white';
                 turn = 'white';
@@ -1027,7 +1134,6 @@
 
                 conn.on('data', (data) => {
                     if (data.type === 'gameState') {
-                        // Apply opponent's game state
                         board = data.board;
                         turn = data.turn;
                         gameOver = data.gameOver;
@@ -1046,13 +1152,13 @@
                     isConnected = false;
                     document.getElementById('onlineStatus').innerHTML = '🔴 Opponent disconnected';
                     document.getElementById('onlineStatus').style.background = '#f44336';
-                    document.getElementById('statusMsg').innerHTML = '❌ Opponent left the game!';
+                    document.getElementById('statusMsg').innerHTML = '❌ Opponent left!';
                 });
             });
 
             peer.on('error', (err) => {
                 console.error('Peer error:', err);
-                document.getElementById('statusMsg').innerHTML = `❌ Connection error: ${err}`;
+                document.getElementById('statusMsg').innerHTML = `❌ Error: ${err}`;
             });
         }
 
@@ -1083,14 +1189,14 @@
                 turn = 'black';
                 currentMode = 'online';
 
-                document.getElementById('onlineStatus').innerHTML = '🟡 Connecting to game...';
+                document.getElementById('onlineStatus').innerHTML = '🟡 Connecting...';
                 document.getElementById('onlineStatus').style.background = '#ff9800';
 
                 conn.on('open', () => {
                     isConnected = true;
                     document.getElementById('onlineStatus').innerHTML = '🟢 Connected! You are BLACK';
                     document.getElementById('onlineStatus').style.background = '#4caf50';
-                    document.getElementById('statusMsg').innerHTML = '🎮 Connected! Waiting for white to move...';
+                    document.getElementById('statusMsg').innerHTML = '🎮 Connected! Waiting for white...';
                     resetGame();
                 });
 
@@ -1157,7 +1263,7 @@
         function setDifficultyLevel(level) {
             difficulty = level;
             resetGame();
-            document.getElementById('statusMsg').innerHTML = `🎮 Difficulty set to ${level.toUpperCase()}`;
+            document.getElementById('statusMsg').innerHTML = `🎮 Difficulty: ${level.toUpperCase()}`;
             document.querySelectorAll('#offcanvasEasy, #offcanvasMedium, #offcanvasHard').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`).classList.add('active');
         }
@@ -1196,6 +1302,14 @@
         document.getElementById('offcanvasMedium').addEventListener('click', () => { setDifficultyLevel('medium'); closeOffcanvas(); });
         document.getElementById('offcanvasHard').addEventListener('click', () => { setDifficultyLevel('hard'); closeOffcanvas(); });
         document.getElementById('offcanvasReset').addEventListener('click', () => { resetGame(); closeOffcanvas(); });
+
+        // Close modal when clicking outside (optional)
+        document.getElementById('promotionModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('promotionModal')) {
+                // Don't close, force selection
+                document.getElementById('statusMsg').innerHTML = "⚠️ You must choose a promotion piece!";
+            }
+        });
 
         renderBoard();
         updateUI();
