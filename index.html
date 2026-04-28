@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Online Multiplayer Chess</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+
+<body>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <div class="board-container">
+                <div class="board" id="chessboard"></div>
+            </div>
+
+            <div class="connection-panel">
+                <button class="connection-btn" id="createRoomBtn">🎮 CREATE GAME</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="roomCodeInput" placeholder="Enter Game Code" style="width: 120px;">
+                    <button class="connection-btn" id="joinRoomBtn">🔗 JOIN GAME</button>
+                </div>
+                <button class="connection-btn" id="disconnectBtn" style="background: #d32f2f;">🚪 DISCONNECT</button>
+            </div>
+
+            <div class="info-panel">
+                <div class="turn-indicator">
+                    <span id="turnPiece">♔</span>
+                    <span id="turnText">White's Turn</span>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="mode-btn" id="modeVsFriend">👥 LOCAL 2P</button>
+                    <button class="mode-btn active" id="modeVsComputer">🤖 VS AI</button>
+                </div>
+
+                <button id="resetBtn">🔄 NEW GAME</button>
+            </div>
+
+            <div class="status" id="statusMsg">🎮 Click CREATE GAME to play online with a friend!</div>
+            <div class="room-code" id="roomCodeDisplay" style="display: none;"></div>
+            <div class="connection-status" id="connectionStatus"></div>
+        </div>
+    </div>
+
+    <div id="promotionModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: white;">Choose Promotion Piece</h2>
+            <div class="promotion-pieces">
+                <div class="promo-piece" data-piece="q">♕ Queen</div>
+                <div class="promo-piece" data-piece="r">♖ Rook</div>
+                <div class="promo-piece" data-piece="b">♗ Bishop</div>
+                <div class="promo-piece" data-piece="n">♘ Knight</div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
