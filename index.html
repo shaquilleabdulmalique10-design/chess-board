@@ -4,44 +4,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Online Multiplayer Chess</title>
+    <title>Ultimate Chess - Online Multiplayer</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+
+    </style>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 
 <body>
-    <div class="game-wrapper">
-        <div class="game-container">
-            <div class="board-container">
-                <div class="board" id="chessboard"></div>
+    <div class="app">
+        <!-- Menu Button for Mobile -->
+        <div class="menu-btn" id="menuBtn">☰</div>
+
+        <!-- Offcanvas Sidebar -->
+        <div class="offcanvas" id="offcanvas">
+            <div style="text-align: right; margin-bottom: 20px;">
+                <button id="closeMenuBtn" style="background: none; font-size: 24px; padding: 5px;">✕</button>
             </div>
 
-            <div class="connection-panel">
-                <button class="connection-btn" id="createRoomBtn">🎮 CREATE GAME</button>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="roomCodeInput" placeholder="Enter Game Code" style="width: 120px;">
-                    <button class="connection-btn" id="joinRoomBtn">🔗 JOIN GAME</button>
+            <div class="offcanvas-section">
+                <div class="turn-indicator-offcanvas">
+                    <span style="font-size: 32px;" id="offcanvasTurnPiece">♔</span>
+                    <span id="offcanvasTurnText">White's Turn</span>
                 </div>
-                <button class="connection-btn" id="disconnectBtn" style="background: #d32f2f;">🚪 DISCONNECT</button>
             </div>
 
-            <div class="info-panel">
-                <div class="turn-indicator">
-                    <span id="turnPiece">♔</span>
-                    <span id="turnText">White's Turn</span>
-                </div>
-
-                <div style="display: flex; gap: 10px;">
-                    <button class="mode-btn" id="modeVsFriend">👥 LOCAL 2P</button>
-                    <button class="mode-btn active" id="modeVsComputer">🤖 VS AI</button>
-                </div>
-
-                <button id="resetBtn">🔄 NEW GAME</button>
+            <div class="offcanvas-section">
+                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER</div>
+                <button class="offcanvas-btn" id="offcanvasCreateRoom">🎮 CREATE GAME</button>
+                <input type="text" id="offcanvasRoomCode" placeholder="Enter Game Code" class="offcanvas-input">
+                <button class="offcanvas-btn" id="offcanvasJoinRoom">🔗 JOIN GAME</button>
+                <button class="offcanvas-btn" id="offcanvasDisconnect" style="background: #d32f2f;">🚪
+                    DISCONNECT</button>
+                <div id="offcanvasRoomDisplay" class="room-code-display" style="display: none;"></div>
+                <div id="offcanvasConnectionStatus" class="connection-status"></div>
             </div>
 
-            <div class="status" id="statusMsg">🎮 Click CREATE GAME to play online with a friend!</div>
-            <div class="room-code" id="roomCodeDisplay" style="display: none;"></div>
-            <div class="connection-status" id="connectionStatus"></div>
+            <div class="offcanvas-section">
+                <div class="offcanvas-title">🎮 GAME MODES</div>
+                <button class="offcanvas-btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
+                <button class="offcanvas-btn" id="offcanvasModeFriend">👥 LOCAL 2 PLAYER</button>
+            </div>
+
+            <div class="offcanvas-section">
+                <div class="offcanvas-title">⚙️ AI DIFFICULTY</div>
+                <button class="offcanvas-btn" id="offcanvasEasy">🟢 EASY</button>
+                <button class="offcanvas-btn" id="offcanvasMedium">🟡 MEDIUM</button>
+                <button class="offcanvas-btn" id="offcanvasHard">🔴 HARD</button>
+            </div>
+
+            <div class="offcanvas-section">
+                <button class="offcanvas-btn" id="offcanvasReset" style="background: #ff9800;">🔄 NEW GAME</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="game-wrapper">
+                <div class="game-container">
+                    <div class="board-container">
+                        <div class="board" id="chessboard"></div>
+                    </div>
+                    <div class="status" id="statusMsg">🎮 Click menu to start online game!</div>
+                </div>
+            </div>
         </div>
     </div>
 
