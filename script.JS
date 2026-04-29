@@ -663,6 +663,11 @@ function renderBoard() {
       }
 
       sq.addEventListener('click', (()=>{const rr=r,cc=c;return()=>onSquareClick(rr,cc);})());
+      // Also handle touchend for instant response on mobile
+      sq.addEventListener('touchend', (()=>{
+        const rr=r,cc=c;
+        return (e)=>{ e.preventDefault(); onSquareClick(rr,cc); };
+      })(), {passive:false});
       el.appendChild(sq);
     }
   }
