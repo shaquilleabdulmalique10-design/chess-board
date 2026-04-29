@@ -5,9 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ABDULMALIQUE - CHESS</title>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- PeerJS for zero-setup P2P multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -40,31 +39,20 @@
                 <span id="connectionBarText">Not connected</span>
             </div>
 
-            <!-- Firebase config input (shown when not configured) -->
-            <div id="firebaseSetupPanel" class="firebase-setup">
-                <div class="setup-info">
-                    <span>⚙️</span>
-                    <p>Paste your Firebase Realtime Database URL to enable online play</p>
-                </div>
-                <input type="text" id="firebaseUrlInput" placeholder="https://your-app-default-rtdb.firebaseio.com"
-                    class="input-field" />
-                <button class="btn btn-primary" id="saveFirebaseBtn">💾 SAVE & CONNECT</button>
-            </div>
-
-            <!-- Online controls (shown when Firebase is configured) -->
-            <div id="onlineControls" style="display:none;">
+            <!-- Online controls — always visible, no setup needed -->
+            <div id="onlineControls">
                 <button class="btn btn-primary" id="createGameBtn">🎮 CREATE NEW GAME</button>
 
                 <div id="gameCodeContainer" style="display:none;">
                     <div class="room-code-label">YOUR GAME CODE</div>
                     <div class="room-code-box" id="roomCodeDisplay"></div>
                     <button class="btn btn-success" id="copyCodeBtn">📋 COPY CODE</button>
-                    <div class="share-hint">Share this code with your friend!</div>
+                    <div class="share-hint">Send this code to your friend!</div>
                 </div>
 
                 <div class="join-row">
-                    <input type="text" id="roomCodeInput" placeholder="Enter Game Code" class="input-field"
-                        maxlength="8" />
+                    <input type="text" id="roomCodeInput" placeholder="Enter friend's code" class="input-field"
+                        maxlength="12" />
                     <button class="btn btn-primary" id="joinGameBtn">🔗 JOIN</button>
                 </div>
 
@@ -110,6 +98,7 @@
                 <button class="btn" id="offcanvasMedium">🟡 MEDIUM</button>
                 <button class="btn active" id="offcanvasHard">🔴 HARD</button>
                 <button class="btn" id="offcanvasExpert">⚫ EXPERT</button>
+                <button class="btn" id="offcanvasLegend">👑 LEGEND</button>
             </div>
 
             <!-- ===== GAME CONTROLS ===== -->

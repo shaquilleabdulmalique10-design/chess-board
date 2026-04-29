@@ -1029,6 +1029,11 @@ body::before {
   margin: 0;
 }
 
+#offcanvasLegend {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+
 /* ===== GAME WRAPPER FLEX COLUMN ===== */
 .game-wrapper {
   display: flex;
