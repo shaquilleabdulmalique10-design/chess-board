@@ -4,12 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ABDULMALIQUE - Chess 🔥</title>
-    <!-- Firebase SDKs - FREE cloud database -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <title>ABDULMALIQUE - CHESS🔥</title>
+    <!-- Try multiple PeerJS CDNs for redundancy -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="style.css">
-
 </head>
 
 <body>
@@ -28,15 +26,16 @@
             </div>
 
             <div class="offcanvas-section">
-                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER - FIREBASE</div>
+                <div class="offcanvas-title">🌐 ONLINE MULTIPLAYER</div>
                 <button class="offcanvas-btn" id="createGameBtn">🎮 CREATE GAME</button>
                 <div id="gameCodeContainer" style="display: none;">
                     <div id="roomCodeDisplay" class="room-code-display"></div>
                     <button class="offcanvas-btn copy-btn" id="copyCodeBtn">📋 COPY CODE</button>
                 </div>
                 <input type="text" id="roomCodeInput" placeholder="Enter Game Code" class="offcanvas-input"
-                    maxlength="8">
+                    maxlength="10">
                 <button class="offcanvas-btn" id="joinGameBtn">🔗 JOIN GAME</button>
+                <button class="offcanvas-btn retry-btn" id="retryConnectionBtn">🔄 RETRY CONNECTION</button>
                 <button class="offcanvas-btn" id="disconnectBtn" style="background: #d32f2f;">🚪 LEAVE GAME</button>
                 <div id="onlineStatus" class="connection-badge">⚫ Not connected</div>
             </div>

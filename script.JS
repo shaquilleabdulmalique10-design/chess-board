@@ -1,30 +1,3 @@
-// ============ FIREBASE CONFIGURATION (FREE PUBLIC DATABASE) ============
-// This is a FREE Firebase database I created for this chess game
-const firebaseConfig = {
-  apiKey: "AIzaSyD7xTqX9nL3kM2pR8vW5yX6zA1bC4dE5fG6h",
-  authDomain: "chess-online-multiplayer.firebaseapp.com",
-  databaseURL: "https://chess-online-multiplayer-default-rtdb.firebaseio.com",
-  projectId: "chess-online-multiplayer",
-  storageBucket: "chess-online-multiplayer.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef123456789",
-};
-
-// Initialize Firebase
-let database = null;
-let firebaseInitialized = false;
-
-try {
-  firebase.initializeApp(firebaseConfig);
-  database = firebase.database();
-  firebaseInitialized = true;
-  console.log("✅ Firebase connected!");
-  document.getElementById("onlineStatus").innerHTML = "🟢 Firebase ready!";
-} catch (e) {
-  console.warn("Firebase error, using fallback mode");
-  document.getElementById("onlineStatus").innerHTML = "⚠️ Using fallback mode";
-}
-
 // Chess pieces
 const pieces = {
   r: "♜",
@@ -79,11 +52,25 @@ let difficulty = "hard";
 let aiThinking = false;
 let pendingPromotion = null;
 
-// Firebase multiplayer
-let currentRoom = null;
-let myColorFirebase = null;
-let isConnectedFirebase = false;
-let gameListener = null;
+// PeerJS connection with retry logic
+let peer = null;
+let conn = null;
+let myPeerId = null;
+let myColor = null;
+let isConnected = false;
+let reconnectAttempts = 0;
+let connectionTimeout = null;
+
+// Multiple STUN server options for redundancy
+const stunServers = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.stunprotocol.org:3478" },
+  { urls: "stun:stun.voipstunt.com:3478" },
+];
 
 function playBeep(frequency, duration, type = "sine") {
   try {
@@ -459,12 +446,12 @@ function handlePromotion(pieceType) {
   resolve();
   renderBoard();
   updateUI();
-  if (isConnectedFirebase && currentRoom) saveGameToFirebase();
+  if (isConnected && conn) sendGameState();
 }
 
 async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
   if (gameOver) return false;
-  if (isConnectedFirebase && !isRemote && myColorFirebase !== turn) {
+  if (isConnected && !isRemote && myColor !== turn) {
     document.getElementById("statusMsg").innerHTML =
       "❌ Wait for your opponent!";
     return false;
@@ -531,7 +518,7 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
 
   renderBoard();
   updateUI();
-  if (isConnectedFirebase && !isRemote && currentRoom) saveGameToFirebase();
+  if (isConnected && !isRemote && conn) sendGameState();
   return true;
 }
 
@@ -560,10 +547,10 @@ function updateUI() {
     turn === "white" ? "♔" : "♚";
   document.getElementById("offcanvasTurnText").innerText =
     turn === "white" ? "White's Turn" : "Black's Turn";
-  if (isConnectedFirebase && myColorFirebase === turn && !gameOver)
+  if (isConnected && myColor === turn && !gameOver)
     document.getElementById("statusMsg").innerHTML =
       "🎮 Your turn! Make a move";
-  else if (isConnectedFirebase && !gameOver)
+  else if (isConnected && !gameOver)
     document.getElementById("statusMsg").innerHTML =
       "⏳ Waiting for opponent...";
 }
@@ -579,7 +566,7 @@ function resetGame() {
     ["P", "P", "P", "P", "P", "P", "P", "P"],
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
-  turn = isConnectedFirebase && myColorFirebase ? myColorFirebase : "white";
+  turn = isConnected && myColor ? myColor : "white";
   gameOver = false;
   winner = null;
   selectedRow = null;
@@ -589,7 +576,7 @@ function resetGame() {
   renderBoard();
   if (currentMode === "computer" && turn === "black")
     setTimeout(() => aiMove(), 200);
-  if (isConnectedFirebase && currentRoom) saveGameToFirebase();
+  if (isConnected && conn) sendGameState();
 }
 
 function renderBoard() {
@@ -692,203 +679,226 @@ async function onSquareClick(row, col) {
   }
 }
 
-// ============ FIREBASE MULTIPLAYER (WORKS ANYWHERE!) ============
+// ============ IMPROVED ONLINE FUNCTIONS WITH RETRY ============
 
-function generateRoomCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
-function saveGameToFirebase() {
-  if (!currentRoom || !database) return;
-
+function sendGameState() {
+  if (!conn || !conn.open) return;
   const gameData = {
+    type: "gameState",
     board: board,
     turn: turn,
     gameOver: gameOver,
     lastMove: lastMove,
-    timestamp: Date.now(),
   };
-
-  database.ref(`games/${currentRoom}`).set(gameData);
+  conn.send(gameData);
 }
 
-function createFirebaseGame() {
-  if (!firebaseInitialized) {
-    document.getElementById("statusMsg").innerHTML =
-      "❌ Firebase not connected! Check internet.";
-    return;
+function cleanupPeer() {
+  if (conn) {
+    try {
+      conn.close();
+    } catch (e) {}
   }
+  if (peer) {
+    try {
+      peer.destroy();
+    } catch (e) {}
+  }
+  if (connectionTimeout) clearTimeout(connectionTimeout);
+  peer = null;
+  conn = null;
+}
 
-  const roomCode = generateRoomCode();
-  currentRoom = roomCode;
-  myColorFirebase = "white";
-  turn = "white";
-  isConnectedFirebase = true;
-  currentMode = "online";
+function createGame() {
+  cleanupPeer();
 
-  document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
-  document.getElementById("gameCodeContainer").style.display = "block";
-  document.getElementById("onlineStatus").innerHTML =
-    "🟡 Waiting for opponent to join... (Share this code!)";
-  document.getElementById("onlineStatus").style.background = "#ff9800";
-  document.getElementById("statusMsg").innerHTML =
-    `✅ Game created! Code: ${roomCode} - Send this to your friend in Poland!`;
+  myPeerId = Math.random().toString(36).substring(2, 10);
 
-  // Initialize game in Firebase
-  const initialData = {
-    board: board,
-    turn: "white",
-    gameOver: false,
-    lastMove: null,
-    players: 1,
+  const peerConfig = {
+    config: { iceServers: stunServers },
+    debug: 2,
   };
 
-  database.ref(`games/${roomCode}`).set(initialData);
+  peer = new Peer(myPeerId, peerConfig);
 
-  // Listen for changes
-  if (gameListener) gameListener.off();
-  gameListener = database.ref(`games/${roomCode}`).on("value", (snapshot) => {
-    const data = snapshot.val();
-    if (!data) return;
-
-    // Only update if not the one who made the move (check timestamp difference)
-    const loadedBoard = data.board;
-    if (loadedBoard && JSON.stringify(loadedBoard) !== JSON.stringify(board)) {
-      board = loadedBoard;
-      turn = data.turn || "white";
-      gameOver = data.gameOver || false;
-      lastMove = data.lastMove || null;
-      renderBoard();
-      updateUI();
-
-      if (!gameOver && turn === myColorFirebase) {
-        document.getElementById("statusMsg").innerHTML =
-          "🎮 Opponent moved! Your turn";
-        playMoveSound();
-      }
+  connectionTimeout = setTimeout(() => {
+    if (peer && !isConnected) {
+      document.getElementById("statusMsg").innerHTML =
+        "❌ Connection timeout! Try again or use RETRY button.";
+      document.getElementById("onlineStatus").innerHTML =
+        "🔴 Connection failed - Try RETRY";
+      document.getElementById("onlineStatus").style.background = "#f44336";
     }
+  }, 15000);
+
+  peer.on("open", (id) => {
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+    myPeerId = id;
+    document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${id}`;
+    document.getElementById("gameCodeContainer").style.display = "block";
+    document.getElementById("onlineStatus").innerHTML =
+      "🟡 Waiting for opponent to join...";
+    document.getElementById("onlineStatus").style.background = "#ff9800";
+    document.getElementById("statusMsg").innerHTML =
+      `✅ Game created! Code: ${id} - Share this with your friend!`;
+    myColor = "white";
+    turn = "white";
+    currentMode = "online";
+    resetGame();
   });
 
-  resetGame();
-  closeOffcanvas();
+  peer.on("connection", (connection) => {
+    conn = connection;
+    isConnected = true;
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+    document.getElementById("onlineStatus").innerHTML =
+      "🟢 Connected! You are WHITE";
+    document.getElementById("onlineStatus").style.background = "#4caf50";
+    document.getElementById("statusMsg").innerHTML =
+      "🎮 Opponent joined! You move first.";
+
+    conn.on("data", (data) => {
+      if (data.type === "gameState") {
+        board = data.board;
+        turn = data.turn;
+        gameOver = data.gameOver;
+        lastMove = data.lastMove;
+        renderBoard();
+        updateUI();
+        if (!gameOver && turn === myColor) {
+          document.getElementById("statusMsg").innerHTML =
+            "🎮 Opponent moved! Your turn";
+          playMoveSound();
+        }
+      }
+    });
+
+    conn.on("close", () => {
+      isConnected = false;
+      document.getElementById("onlineStatus").innerHTML =
+        "🔴 Opponent disconnected";
+      document.getElementById("onlineStatus").style.background = "#f44336";
+      document.getElementById("statusMsg").innerHTML =
+        "❌ Opponent left the game! Click LEAVE then CREATE again.";
+    });
+  });
+
+  peer.on("error", (err) => {
+    console.error("Peer error:", err);
+    document.getElementById("statusMsg").innerHTML =
+      `❌ Error: ${err.type || err}. Click RETRY CONNECTION`;
+    document.getElementById("onlineStatus").innerHTML =
+      "🔴 Connection error - Click RETRY";
+    document.getElementById("onlineStatus").style.background = "#f44336";
+  });
 }
 
-function joinFirebaseGame() {
-  const roomCode = document
-    .getElementById("roomCodeInput")
-    .value.trim()
-    .toUpperCase();
+function joinGame() {
+  const roomCode = document.getElementById("roomCodeInput").value.trim();
   if (!roomCode) {
     document.getElementById("statusMsg").innerHTML = "❌ Enter a game code!";
     return;
   }
 
-  if (!firebaseInitialized) {
-    document.getElementById("statusMsg").innerHTML =
-      "❌ Firebase not connected!";
-    return;
-  }
+  cleanupPeer();
 
-  // Check if room exists
-  database
-    .ref(`games/${roomCode}`)
-    .get()
-    .then((snapshot) => {
-      if (!snapshot.exists()) {
-        document.getElementById("statusMsg").innerHTML =
-          "❌ Room not found! Check the code and try again.";
-        return;
-      }
+  const peerConfig = {
+    config: { iceServers: stunServers },
+    debug: 2,
+  };
 
-      currentRoom = roomCode;
-      myColorFirebase = "black";
-      turn = "black";
-      isConnectedFirebase = true;
-      currentMode = "online";
+  peer = new Peer(peerConfig);
 
-      document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
-      document.getElementById("gameCodeContainer").style.display = "block";
+  connectionTimeout = setTimeout(() => {
+    if (peer && !isConnected) {
+      document.getElementById("statusMsg").innerHTML =
+        "❌ Connection timeout! Check code or try RETRY.";
+      document.getElementById("onlineStatus").innerHTML =
+        "🔴 Connection timeout";
+      document.getElementById("onlineStatus").style.background = "#f44336";
+    }
+  }, 15000);
+
+  peer.on("open", () => {
+    conn = peer.connect(roomCode);
+    myColor = "black";
+    turn = "black";
+    currentMode = "online";
+    document.getElementById("onlineStatus").innerHTML =
+      "🟡 Connecting to game...";
+    document.getElementById("onlineStatus").style.background = "#ff9800";
+
+    conn.on("open", () => {
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      isConnected = true;
       document.getElementById("onlineStatus").innerHTML =
         "🟢 Connected! You are BLACK";
       document.getElementById("onlineStatus").style.background = "#4caf50";
       document.getElementById("statusMsg").innerHTML =
-        `✅ Joined room ${roomCode}! Waiting for white to move...`;
+        "🎮 Connected! Waiting for white to move...";
+      resetGame();
+    });
 
-      // Update player count
-      database.ref(`games/${roomCode}/players`).set(2);
-
-      // Load existing game
-      const data = snapshot.val();
-      if (data.board) {
+    conn.on("data", (data) => {
+      if (data.type === "gameState") {
         board = data.board;
-        turn = data.turn || "black";
-        gameOver = data.gameOver || false;
-        lastMove = data.lastMove || null;
+        turn = data.turn;
+        gameOver = data.gameOver;
+        lastMove = data.lastMove;
         renderBoard();
         updateUI();
+        if (!gameOver && turn === myColor) {
+          document.getElementById("statusMsg").innerHTML =
+            "🎮 Opponent moved! Your turn";
+          playMoveSound();
+        }
       }
-
-      // Listen for changes
-      if (gameListener) gameListener.off();
-      gameListener = database
-        .ref(`games/${roomCode}`)
-        .on("value", (snapshot) => {
-          const newData = snapshot.val();
-          if (!newData) return;
-
-          const loadedBoard = newData.board;
-          if (
-            loadedBoard &&
-            JSON.stringify(loadedBoard) !== JSON.stringify(board)
-          ) {
-            board = loadedBoard;
-            turn = newData.turn || "black";
-            gameOver = newData.gameOver || false;
-            lastMove = newData.lastMove || null;
-            renderBoard();
-            updateUI();
-
-            if (!gameOver && turn === myColorFirebase) {
-              document.getElementById("statusMsg").innerHTML =
-                "🎮 Opponent moved! Your turn";
-              playMoveSound();
-            }
-          }
-        });
-
-      resetGame();
-      closeOffcanvas();
-    })
-    .catch((error) => {
-      document.getElementById("statusMsg").innerHTML =
-        "❌ Error joining room: " + error.message;
     });
+
+    conn.on("close", () => {
+      isConnected = false;
+      document.getElementById("onlineStatus").innerHTML = "🔴 Disconnected";
+      document.getElementById("onlineStatus").style.background = "#f44336";
+      document.getElementById("statusMsg").innerHTML =
+        "❌ Connection lost! Click LEAVE then JOIN again.";
+    });
+  });
+
+  peer.on("error", (err) => {
+    console.error("Peer error:", err);
+    document.getElementById("statusMsg").innerHTML =
+      `❌ Failed to join: ${err.type || err}. Click RETRY CONNECTION`;
+    document.getElementById("onlineStatus").innerHTML =
+      "🔴 Join failed - Click RETRY";
+    document.getElementById("onlineStatus").style.background = "#f44336";
+  });
 }
 
-function leaveFirebaseGame() {
-  if (gameListener) {
-    gameListener.off();
-    gameListener = null;
+function retryConnection() {
+  if (isConnected) {
+    disconnectGame();
   }
+  setTimeout(() => {
+    if (myColor === "white" || currentMode === "online") {
+      createGame();
+    } else {
+      document.getElementById("statusMsg").innerHTML =
+        "⚠️ Enter a code and click JOIN GAME to retry";
+    }
+  }, 500);
+}
 
-  if (currentRoom && database) {
-    database
-      .ref(`games/${currentRoom}`)
-      .remove()
-      .catch(() => {});
-  }
-
-  isConnectedFirebase = false;
-  currentRoom = null;
-  myColorFirebase = null;
+function disconnectGame() {
+  cleanupPeer();
+  isConnected = false;
+  myColor = null;
   currentMode = "computer";
-
   document.getElementById("gameCodeContainer").style.display = "none";
   document.getElementById("onlineStatus").innerHTML = "⚫ Not connected";
   document.getElementById("onlineStatus").style.background = "#2c2c3a";
   document.getElementById("roomCodeInput").value = "";
   document.getElementById("statusMsg").innerHTML = "🤖 Back to AI mode";
-
+  if (connectionTimeout) clearTimeout(connectionTimeout);
   resetGame();
   closeOffcanvas();
 }
@@ -909,7 +919,7 @@ function setDifficultyLevel(level) {
 }
 
 function setGameMode(mode) {
-  if (isConnectedFirebase) leaveFirebaseGame();
+  if (isConnected) disconnectGame();
   currentMode = mode;
   turn = "white";
   if (mode === "computer")
@@ -927,10 +937,10 @@ function closeOffcanvas() {
   document.getElementById("offcanvas").classList.remove("open");
 }
 function copyGameCode() {
-  if (currentRoom) {
-    navigator.clipboard.writeText(currentRoom);
+  if (myPeerId) {
+    navigator.clipboard.writeText(myPeerId);
     document.getElementById("statusMsg").innerHTML =
-      "✅ Game code copied! Send to your friend in Poland!";
+      "✅ Game code copied! Send to your friend.";
   }
 }
 
@@ -944,13 +954,20 @@ document
   .getElementById("closeMenuBtn")
   .addEventListener("click", closeOffcanvas);
 document.getElementById("createGameBtn").addEventListener("click", () => {
-  createFirebaseGame();
+  createGame();
+  closeOffcanvas();
 });
 document.getElementById("joinGameBtn").addEventListener("click", () => {
-  joinFirebaseGame();
+  joinGame();
+  closeOffcanvas();
+});
+document.getElementById("retryConnectionBtn").addEventListener("click", () => {
+  retryConnection();
+  closeOffcanvas();
 });
 document.getElementById("disconnectBtn").addEventListener("click", () => {
-  leaveFirebaseGame();
+  disconnectGame();
+  closeOffcanvas();
 });
 document.getElementById("copyCodeBtn").addEventListener("click", copyGameCode);
 document.getElementById("offcanvasModeAI").addEventListener("click", () => {
