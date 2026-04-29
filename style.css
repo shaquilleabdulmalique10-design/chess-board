@@ -593,8 +593,13 @@ body::before {
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ===== FIREBASE SETUP PANEL ===== */
@@ -690,8 +695,13 @@ body::before {
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-.white-dot { background: #ffffff; }
-.black-dot { background: #1a1a1a; border-color: rgba(255,255,255,0.5); }
+.white-dot {
+  background: #ffffff;
+}
+.black-dot {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.5);
+}
 
 .player-details {
   flex: 1;
@@ -805,8 +815,14 @@ body::before {
   flex-shrink: 0;
 }
 
-.opp-color-dot.white-dot { background: #fff; border: 1px solid rgba(0,0,0,0.2); }
-.opp-color-dot.black-dot { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.3); }
+.opp-color-dot.white-dot {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.opp-color-dot.black-dot {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
 
 .opp-info span {
   color: #fff;
@@ -895,9 +911,17 @@ body::before {
 }
 
 @keyframes bounceIn {
-  0% { transform: scale(0.3); opacity: 0; }
-  60% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .game-over-content h2 {
@@ -958,7 +982,9 @@ body::before {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== TOAST NOTIFICATION ===== */

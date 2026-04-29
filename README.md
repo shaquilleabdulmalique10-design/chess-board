@@ -7,6 +7,7 @@ A fully-featured online chess game with real-time multiplayer, advanced AI, and 
 ## 🚀 Features
 
 ### ✨ Online Multiplayer
+
 - **Real-time sync** via Firebase Realtime Database
 - **Presence system** — see when your opponent is online/offline
 - **Auto-reconnect** — restores game state if connection drops
@@ -16,6 +17,7 @@ A fully-featured online chess game with real-time multiplayer, advanced AI, and 
 - **Toast notifications** — for all game events
 
 ### 🤖 AI Opponents
+
 - **4 difficulty levels:**
   - 🟢 **Easy** — Random moves with occasional captures
   - 🟡 **Medium** — Greedy captures + 1-ply lookahead
@@ -30,6 +32,7 @@ A fully-featured online chess game with real-time multiplayer, advanced AI, and 
   - Endgame detection
 
 ### 🎨 Modern UI
+
 - Responsive design (desktop & mobile)
 - Animated board highlights (selected, valid moves, last move, check)
 - Rank/file labels (a-h, 1-8)
@@ -90,10 +93,12 @@ In the Firebase Console, go to **Realtime Database** → **Rules** tab and paste
 ## 🎮 How to Play
 
 ### Local Modes
+
 - **🤖 VS COMPUTER** — Play against AI (choose difficulty: Easy/Medium/Hard/Expert)
 - **👥 LOCAL TWO PLAYER** — Pass-and-play on the same device
 
 ### Online Multiplayer
+
 1. **Create a game:**
    - Click **🎮 CREATE NEW GAME**
    - Share the 6-character code with your friend
@@ -116,6 +121,7 @@ In the Firebase Console, go to **Realtime Database** → **Rules** tab and paste
 ## 📱 Mobile Support
 
 Fully responsive! Works great on phones and tablets:
+
 - Touch-friendly piece selection
 - Swipe-friendly sidebar menu
 - Optimized board size for small screens
@@ -125,11 +131,13 @@ Fully responsive! Works great on phones and tablets:
 ## 🛠️ Technical Details
 
 ### Stack
+
 - **Frontend:** Vanilla JavaScript (no frameworks)
 - **Backend:** Firebase Realtime Database
 - **Styling:** Pure CSS with gradients, animations, and backdrop filters
 
 ### Key Features
+
 - **Minimax AI** with alpha-beta pruning (up to depth 4)
 - **Positional evaluation** using piece-square tables
 - **Move validation** with check/checkmate detection
@@ -138,6 +146,7 @@ Fully responsive! Works great on phones and tablets:
 - **Auto-reconnect** with exponential backoff
 
 ### Browser Compatibility
+
 - Chrome/Edge (recommended)
 - Firefox
 - Safari (iOS 12+)
@@ -147,21 +156,25 @@ Fully responsive! Works great on phones and tablets:
 ## 🐛 Troubleshooting
 
 ### "Firebase not connected"
+
 - Check your database URL format: `https://PROJECT-NAME-default-rtdb.firebaseio.com`
 - Verify your Firebase project has Realtime Database enabled
 - Check browser console for errors
 
 ### "Room not found"
+
 - Make sure the game code is correct (6 characters, case-insensitive)
 - The game creator must stay connected for the room to exist
 - Try creating a new game
 
 ### Opponent shows "Offline"
+
 - Check their internet connection
 - They may have closed the browser tab
 - Wait 20 seconds — the presence system has a timeout
 
 ### Moves not syncing
+
 - Check the connection status bar (should be green)
 - Refresh both players' browsers
 - Check Firebase Console → Realtime Database to see if data is being written
@@ -177,6 +190,7 @@ Free to use and modify. Built with ❤️ by ABDULMALIQUE.
 ## 🎯 Future Enhancements
 
 Possible additions:
+
 - User authentication (Firebase Auth)
 - Game history & replay
 - ELO rating system
