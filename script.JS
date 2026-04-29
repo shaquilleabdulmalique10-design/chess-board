@@ -16,6 +16,7 @@ try {
   firebase.initializeApp(firebaseConfig);
   database = firebase.database();
   firebaseInitialized = true;
+  console.log("✅ Firebase connected");
 } catch (e) {
   console.warn("Firebase error:", e);
 }
@@ -51,13 +52,13 @@ const pieceValues = {
   K: 900,
 };
 
-// Castling rights tracking
-let whiteKingMoved = false;
-let whiteRookKingSideMoved = false;
-let whiteRookQueenSideMoved = false;
-let blackKingMoved = false;
-let blackRookKingSideMoved = false;
-let blackRookQueenSideMoved = false;
+// Castling rights
+let whiteKingMoved = false,
+  whiteRookKingSideMoved = false,
+  whiteRookQueenSideMoved = false;
+let blackKingMoved = false,
+  blackRookKingSideMoved = false,
+  blackRookQueenSideMoved = false;
 
 let board = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -71,25 +72,25 @@ let board = [
 ];
 
 let turn = "white";
-let selectedRow = null;
-let selectedCol = null;
-let validMoves = [];
-let gameOver = false;
-let winner = null;
-let lastMove = null;
-let currentMode = "computer";
-let difficulty = "hard";
-let aiThinking = false;
-let pendingPromotion = null;
+let selectedRow = null,
+  selectedCol = null,
+  validMoves = [],
+  gameOver = false,
+  winner = null,
+  lastMove = null;
+let currentMode = "computer",
+  difficulty = "hard",
+  aiThinking = false,
+  pendingPromotion = null;
 
 // Firebase multiplayer
-let currentRoom = null;
-let myColorFirebase = null;
-let isConnectedFirebase = false;
-let gameListener = null;
+let currentRoom = null,
+  myColorFirebase = null,
+  isConnectedFirebase = false,
+  gameListener = null;
+let bootstrapModal = null;
 
 // ============ CASTLING FUNCTIONS ============
-
 function updateCastlingRights(movedPiece, fromRow, fromCol) {
   if (movedPiece === "K") whiteKingMoved = true;
   if (movedPiece === "k") blackKingMoved = true;
@@ -157,14 +158,12 @@ function getCastlingMoves(row, col, color) {
 function executeCastle(fromRow, fromCol, toRow, toCol, color) {
   if (color === "white" && fromRow === 7 && fromCol === 4) {
     if (toCol === 6) {
-      // King side
       board[7][6] = board[7][4];
       board[7][4] = "";
       board[7][5] = board[7][7];
       board[7][7] = "";
       return true;
     } else if (toCol === 2) {
-      // Queen side
       board[7][2] = board[7][4];
       board[7][4] = "";
       board[7][3] = board[7][0];
@@ -173,14 +172,12 @@ function executeCastle(fromRow, fromCol, toRow, toCol, color) {
     }
   } else if (color === "black" && fromRow === 0 && fromCol === 4) {
     if (toCol === 6) {
-      // King side
       board[0][6] = board[0][4];
       board[0][4] = "";
       board[0][5] = board[0][7];
       board[0][7] = "";
       return true;
     } else if (toCol === 2) {
-      // Queen side
       board[0][2] = board[0][4];
       board[0][4] = "";
       board[0][3] = board[0][0];
@@ -191,28 +188,23 @@ function executeCastle(fromRow, fromCol, toRow, toCol, color) {
   return false;
 }
 
-// ============ EXISTING CHESS FUNCTIONS ============
-
-function playBeep(frequency, duration, type = "sine") {
+// ============ CHESS LOGIC ============
+function playBeep(freq, dur, type = "sine") {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = frequency;
-    oscillator.type = type;
-    gainNode.gain.value = 0.25;
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.00001,
-      audioCtx.currentTime + duration,
-    );
-    oscillator.stop(audioCtx.currentTime + duration);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = freq;
+    osc.type = type;
+    gain.gain.value = 0.25;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
+    osc.stop(audioCtx.currentTime + dur);
     audioCtx.resume();
   } catch (e) {}
 }
-
 function playCheckSound() {
   playBeep(880, 0.3, "sine");
   setTimeout(() => playBeep(1046.5, 0.2, "sine"), 150);
@@ -350,7 +342,6 @@ function getKingMoves(row, col, boardState, color) {
       }
     }
   }
-  // Add castling moves
   moves.push(...getCastlingMoves(row, col, color));
   return moves;
 }
@@ -404,14 +395,11 @@ function isMoveLegal(fromRow, fromCol, toRow, toCol, boardState, sideToMove) {
   const isValidBasic = moves.some(([r, c]) => r === toRow && c === toCol);
   if (!isValidBasic) return false;
 
-  // Handle castling separately
   const isCastling =
     piece.toLowerCase() === "k" && Math.abs(toCol - fromCol) === 2;
-
   const testBoard = copyBoard(boardState);
 
   if (isCastling) {
-    // Execute castling on test board
     if (sideToMove === "white" && fromRow === 7 && fromCol === 4) {
       if (toCol === 6) {
         testBoard[7][6] = testBoard[7][4];
@@ -443,14 +431,12 @@ function isMoveLegal(fromRow, fromCol, toRow, toCol, boardState, sideToMove) {
   }
 
   const kingPos = findKingPosition(testBoard, sideToMove);
-  const isKingAttacked = isSquareAttacked(
+  return !isSquareAttacked(
     testBoard,
     kingPos.row,
     kingPos.col,
     sideToMove === "white" ? "black" : "white",
   );
-
-  return !isKingAttacked;
 }
 
 function findKingPosition(boardState, color) {
@@ -502,7 +488,6 @@ function evaluateBoard(boardState) {
 
 function minimax(boardState, depth, isMaximizing, alpha, beta) {
   if (depth === 0) return evaluateBoard(boardState);
-
   if (isMaximizing) {
     const moves = getAllValidMovesForColor(boardState, "black");
     if (moves.length === 0) {
@@ -555,7 +540,6 @@ function minimax(boardState, depth, isMaximizing, alpha, beta) {
 function getBestMove(boardState) {
   const moves = getAllValidMovesForColor(boardState, "black");
   if (moves.length === 0) return null;
-
   if (difficulty === "easy") {
     const captureMoves = moves.filter(
       (m) => boardState[m.to[0]][m.to[1]] !== "",
@@ -589,8 +573,9 @@ function getBestMove(boardState) {
 function showPromotionModal(row, col, color) {
   return new Promise((resolve) => {
     pendingPromotion = { row, col, color, resolve };
-    document.getElementById("promotionModal").style.display = "flex";
-    document.body.style.overflow = "hidden";
+    const modalEl = document.getElementById("promotionModal");
+    bootstrapModal = new bootstrap.Modal(modalEl);
+    bootstrapModal.show();
   });
 }
 
@@ -600,8 +585,7 @@ function handlePromotion(pieceType) {
   const newPiece =
     color === "white" ? pieceType.toUpperCase() : pieceType.toLowerCase();
   board[row][col] = newPiece;
-  document.getElementById("promotionModal").style.display = "none";
-  document.body.style.overflow = "";
+  if (bootstrapModal) bootstrapModal.hide();
   pendingPromotion = null;
   resolve();
   renderBoard();
@@ -619,26 +603,20 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
 
   const piece = board[fromRow][fromCol];
   if (piece === "" || getPieceColor(piece) !== turn) return false;
+  if (!isMoveLegal(fromRow, fromCol, toRow, toCol, board, turn)) return false;
 
-  // Check if it's a castling move
   const isCastling =
     piece.toLowerCase() === "k" && Math.abs(toCol - fromCol) === 2;
-
-  if (!isMoveLegal(fromRow, fromCol, toRow, toCol, board, turn)) return false;
 
   if (isCastling) {
     playCastleSound();
     executeCastle(fromRow, fromCol, toRow, toCol, turn);
-    // Update castling rights
     if (turn === "white") whiteKingMoved = true;
     else blackKingMoved = true;
     lastMove = { from: [fromRow, fromCol], to: [toRow, toCol] };
   } else {
     playMoveSound();
-    // Update castling rights based on moved piece
     updateCastlingRights(piece, fromRow, fromCol);
-
-    // If a rook is captured, update castling rights
     const capturedPiece = board[toRow][toCol];
     if (capturedPiece === "R" && toRow === 7 && toCol === 0)
       whiteRookQueenSideMoved = true;
@@ -650,7 +628,6 @@ async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
       blackRookKingSideMoved = true;
 
     lastMove = { from: [fromRow, fromCol], to: [toRow, toCol] };
-
     const movingPiece = board[fromRow][fromCol];
     const isPawn = movingPiece.toLowerCase() === "p";
     const isPromotion =
@@ -756,15 +733,12 @@ function resetGame() {
     ["P", "P", "P", "P", "P", "P", "P", "P"],
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
-
-  // Reset castling rights
   whiteKingMoved = false;
   whiteRookKingSideMoved = false;
   whiteRookQueenSideMoved = false;
   blackKingMoved = false;
   blackRookKingSideMoved = false;
   blackRookQueenSideMoved = false;
-
   turn = isConnectedFirebase && myColorFirebase ? myColorFirebase : "white";
   gameOver = false;
   winner = null;
@@ -808,7 +782,6 @@ function renderBoard() {
         squareDiv.classList.add("last-move");
       if (validMoves.some(([r, c]) => r === i && c === j)) {
         squareDiv.classList.add("valid-move");
-        // Check if it's a castling move (king moving 2 squares)
         const fromPiece =
           selectedRow !== null ? board[selectedRow][selectedCol] : null;
         if (
@@ -829,7 +802,6 @@ function renderBoard() {
         squareDiv.classList.add("in-check");
       const pieceSpan = document.createElement("span");
       pieceSpan.style.fontSize = "inherit";
-      pieceSpan.style.display = "inline-block";
       if (piece)
         pieceSpan.className =
           getPieceColor(piece) === "white" ? "piece-white" : "piece-black";
@@ -891,61 +863,52 @@ async function onSquareClick(row, col) {
   }
 }
 
-// Firebase Multiplayer Functions
+// Firebase Multiplayer
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 function saveGameToFirebase() {
   if (!currentRoom || !database) return;
-  const gameData = {
-    board: board,
-    turn: turn,
-    gameOver: gameOver,
-    lastMove: lastMove,
-    timestamp: Date.now(),
-  };
-  database.ref(`games/${currentRoom}`).set(gameData);
+  database
+    .ref(`games/${currentRoom}`)
+    .set({ board, turn, gameOver, lastMove, timestamp: Date.now() });
 }
 
 function createFirebaseGame() {
   if (!firebaseInitialized) {
     document.getElementById("statusMsg").innerHTML =
-      "❌ Firebase connection failed! Check internet.";
+      "❌ Firebase connection failed!";
     return;
   }
-
   const roomCode = generateRoomCode();
   currentRoom = roomCode;
   myColorFirebase = "white";
   turn = "white";
   isConnectedFirebase = true;
   currentMode = "online";
-
   document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
   document.getElementById("gameCodeContainer").style.display = "block";
   document.getElementById("onlineStatus").innerHTML =
     "🟡 Waiting for opponent... Share this code!";
+  document.getElementById("onlineStatus").style.background =
+    "rgba(255,165,0,0.3)";
   document.getElementById("statusMsg").innerHTML =
-    `✅ Game created! Code: ${roomCode} - Send to your friend!`;
-
-  const initialData = {
-    board: board,
+    `✅ Game created! Code: ${roomCode}`;
+  database.ref(`games/${roomCode}`).set({
+    board,
     turn: "white",
     gameOver: false,
     lastMove: null,
     players: 1,
     timestamp: Date.now(),
-  };
-  database.ref(`games/${roomCode}`).set(initialData);
-
+  });
   if (gameListener) gameListener.off();
   gameListener = database.ref(`games/${roomCode}`).on("value", (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
-    const loadedBoard = data.board;
-    if (loadedBoard && JSON.stringify(loadedBoard) !== JSON.stringify(board)) {
-      board = loadedBoard;
+    if (data.board && JSON.stringify(data.board) !== JSON.stringify(board)) {
+      board = data.board;
       turn = data.turn || "white";
       gameOver = data.gameOver || false;
       lastMove = data.lastMove || null;
@@ -958,9 +921,8 @@ function createFirebaseGame() {
       }
     }
   });
-
   resetGame();
-  closeOffcanvas();
+  closeSidebar();
 }
 
 function joinFirebaseGame() {
@@ -972,38 +934,33 @@ function joinFirebaseGame() {
     document.getElementById("statusMsg").innerHTML = "❌ Enter a game code!";
     return;
   }
-
   if (!firebaseInitialized) {
     document.getElementById("statusMsg").innerHTML =
       "❌ Firebase not connected!";
     return;
   }
-
   database
     .ref(`games/${roomCode}`)
     .get()
     .then((snapshot) => {
       if (!snapshot.exists()) {
-        document.getElementById("statusMsg").innerHTML =
-          "❌ Room not found! Check the code.";
+        document.getElementById("statusMsg").innerHTML = "❌ Room not found!";
         return;
       }
-
       currentRoom = roomCode;
       myColorFirebase = "black";
       turn = "black";
       isConnectedFirebase = true;
       currentMode = "online";
-
       document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
       document.getElementById("gameCodeContainer").style.display = "block";
       document.getElementById("onlineStatus").innerHTML =
         "🟢 Connected! You are BLACK";
+      document.getElementById("onlineStatus").style.background =
+        "rgba(76,175,80,0.3)";
       document.getElementById("statusMsg").innerHTML =
-        `✅ Joined! Waiting for white to move...`;
-
+        `✅ Joined! Waiting for white...`;
       database.ref(`games/${roomCode}/players`).set(2);
-
       const data = snapshot.val();
       if (data.board) {
         board = data.board;
@@ -1013,19 +970,17 @@ function joinFirebaseGame() {
         renderBoard();
         updateUI();
       }
-
       if (gameListener) gameListener.off();
       gameListener = database
         .ref(`games/${roomCode}`)
         .on("value", (snapshot) => {
           const newData = snapshot.val();
           if (!newData) return;
-          const loadedBoard = newData.board;
           if (
-            loadedBoard &&
-            JSON.stringify(loadedBoard) !== JSON.stringify(board)
+            newData.board &&
+            JSON.stringify(newData.board) !== JSON.stringify(board)
           ) {
-            board = loadedBoard;
+            board = newData.board;
             turn = newData.turn || "black";
             gameOver = newData.gameOver || false;
             lastMove = newData.lastMove || null;
@@ -1038,9 +993,8 @@ function joinFirebaseGame() {
             }
           }
         });
-
       resetGame();
-      closeOffcanvas();
+      closeSidebar();
     })
     .catch(() => {
       document.getElementById("statusMsg").innerHTML = "❌ Error joining room!";
@@ -1058,19 +1012,17 @@ function leaveFirebaseGame() {
       .remove()
       .catch(() => {});
   }
-
   isConnectedFirebase = false;
   currentRoom = null;
   myColorFirebase = null;
   currentMode = "computer";
-
   document.getElementById("gameCodeContainer").style.display = "none";
   document.getElementById("onlineStatus").innerHTML = "⚫ Not connected";
+  document.getElementById("onlineStatus").style.background = "";
   document.getElementById("roomCodeInput").value = "";
   document.getElementById("statusMsg").innerHTML = "🤖 Back to AI mode";
-
   resetGame();
-  closeOffcanvas();
+  closeSidebar();
 }
 
 function setDifficultyLevel(level) {
@@ -1081,39 +1033,40 @@ function setDifficultyLevel(level) {
   document.getElementById("offcanvasEasy").classList.remove("active");
   document.getElementById("offcanvasMedium").classList.remove("active");
   document.getElementById("offcanvasHard").classList.remove("active");
-  if (level === "easy")
-    document.getElementById("offcanvasEasy").classList.add("active");
-  if (level === "medium")
-    document.getElementById("offcanvasMedium").classList.add("active");
-  if (level === "hard")
-    document.getElementById("offcanvasHard").classList.add("active");
+  document
+    .getElementById(
+      `offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`,
+    )
+    .classList.add("active");
+  document
+    .getElementById(
+      `offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`,
+    )
+    .classList.add("btn-warning");
 }
 
 function setGameMode(mode) {
   if (isConnectedFirebase) leaveFirebaseGame();
   currentMode = mode;
   turn = "white";
-  if (mode === "computer")
-    document.getElementById("statusMsg").innerHTML =
-      "🤖 VS COMPUTER MODE - Make your move!";
-  else
-    document.getElementById("statusMsg").innerHTML =
-      "👥 LOCAL TWO PLAYER MODE - Take turns!";
+  document.getElementById("statusMsg").innerHTML =
+    mode === "computer" ? "🤖 VS COMPUTER MODE" : "👥 LOCAL TWO PLAYER MODE";
   resetGame();
   updateUI();
+  closeSidebar();
 }
 
-function openOffcanvas() {
-  document.getElementById("offcanvas").classList.add("open");
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("show");
 }
-function closeOffcanvas() {
-  document.getElementById("offcanvas").classList.remove("open");
+function closeSidebar() {
+  if (window.innerWidth < 992)
+    document.getElementById("sidebar").classList.remove("show");
 }
 function copyGameCode() {
   if (currentRoom) {
     navigator.clipboard.writeText(currentRoom);
-    document.getElementById("statusMsg").innerHTML =
-      "✅ Game code copied! Send to your friend!";
+    document.getElementById("statusMsg").innerHTML = "✅ Game code copied!";
   }
 }
 
@@ -1122,48 +1075,61 @@ document.querySelectorAll(".promo-piece").forEach((el) => {
   el.addEventListener("click", () => handlePromotion(el.dataset.piece));
 });
 
-document.getElementById("menuBtn").addEventListener("click", openOffcanvas);
-document.getElementById("createGameBtn").addEventListener("click", () => {
-  createFirebaseGame();
-});
-document.getElementById("joinGameBtn").addEventListener("click", () => {
-  joinFirebaseGame();
-});
-document.getElementById("disconnectBtn").addEventListener("click", () => {
-  leaveFirebaseGame();
-});
+document
+  .getElementById("createGameBtn")
+  .addEventListener("click", createFirebaseGame);
+document
+  .getElementById("joinGameBtn")
+  .addEventListener("click", joinFirebaseGame);
+document
+  .getElementById("disconnectBtn")
+  .addEventListener("click", leaveFirebaseGame);
 document.getElementById("copyCodeBtn").addEventListener("click", copyGameCode);
-document.getElementById("offcanvasModeAI").addEventListener("click", () => {
-  setGameMode("computer");
-  closeOffcanvas();
-});
-document.getElementById("offcanvasModeFriend").addEventListener("click", () => {
-  setGameMode("friend");
-  closeOffcanvas();
-});
-document.getElementById("offcanvasEasy").addEventListener("click", () => {
-  setDifficultyLevel("easy");
-  closeOffcanvas();
-});
-document.getElementById("offcanvasMedium").addEventListener("click", () => {
-  setDifficultyLevel("medium");
-  closeOffcanvas();
-});
-document.getElementById("offcanvasHard").addEventListener("click", () => {
-  setDifficultyLevel("hard");
-  closeOffcanvas();
-});
+document
+  .getElementById("offcanvasModeAI")
+  .addEventListener("click", () => setGameMode("computer"));
+document
+  .getElementById("offcanvasModeFriend")
+  .addEventListener("click", () => setGameMode("friend"));
+document
+  .getElementById("offcanvasEasy")
+  .addEventListener("click", () => setDifficultyLevel("easy"));
+document
+  .getElementById("offcanvasMedium")
+  .addEventListener("click", () => setDifficultyLevel("medium"));
+document
+  .getElementById("offcanvasHard")
+  .addEventListener("click", () => setDifficultyLevel("hard"));
 document.getElementById("offcanvasReset").addEventListener("click", () => {
   resetGame();
-  closeOffcanvas();
+  closeSidebar();
 });
 
+// Mobile controls
+document
+  .getElementById("mobileMenuBtn")
+  .addEventListener("click", toggleSidebar);
+document.getElementById("mobileResetBtn").addEventListener("click", () => {
+  resetGame();
+});
+document
+  .getElementById("mobileCreateBtn")
+  .addEventListener("click", createFirebaseGame);
+document
+  .getElementById("mobileJoinBtn")
+  .addEventListener("click", joinFirebaseGame);
+document
+  .getElementById("mobileLeaveBtn")
+  .addEventListener("click", leaveFirebaseGame);
+document.getElementById("menuBtn")?.addEventListener("click", toggleSidebar);
+
+// Close sidebar when clicking outside
 document.addEventListener("click", (e) => {
-  const offcanvas = document.getElementById("offcanvas");
-  const menuBtn = document.getElementById("menuBtn");
-  if (window.innerWidth < 1024 && offcanvas.classList.contains("open")) {
-    if (!offcanvas.contains(e.target) && !menuBtn.contains(e.target)) {
-      closeOffcanvas();
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("mobileMenuBtn");
+  if (window.innerWidth < 992 && sidebar.classList.contains("show")) {
+    if (!sidebar.contains(e.target) && !menuBtn?.contains(e.target)) {
+      closeSidebar();
     }
   }
 });

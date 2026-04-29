@@ -3,74 +3,177 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>♜ CHESS MASTER - With Castling! ♞</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>ABDULMALIQUE - CHESS</title>
+
+    <!-- Bootstrap 5 CSS + Icons + Custom Font -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div class="app">
-        <button class="menu-btn" id="menuBtn">☰</button>
 
-        <div class="offcanvas" id="offcanvas">
-            <div class="turn-card">
-                <div class="turn-icon" id="sidebarTurnIcon">♔</div>
-                <div>
-                    <div class="turn-label">CURRENT TURN</div>
-                    <div class="turn-value" id="sidebarTurnText">White's Turn</div>
-                </div>
-            </div>
-
-            <div class="section-title">🌐 ONLINE MULTIPLAYER</div>
-            <button class="btn btn-primary" id="createGameBtn">🎮 CREATE NEW GAME</button>
-            <div id="gameCodeContainer" style="display: none;">
-                <div class="room-code-box" id="roomCodeDisplay"></div>
-                <button class="btn btn-success" id="copyCodeBtn">📋 COPY GAME CODE</button>
-            </div>
-            <input type="text" id="roomCodeInput" placeholder="Enter Game Code" class="input-field" maxlength="8">
-            <button class="btn btn-primary" id="joinGameBtn">🔗 JOIN GAME</button>
-            <button class="btn btn-danger" id="disconnectBtn">🚪 LEAVE GAME</button>
-            <div id="onlineStatus" class="status-badge">⚫ Not connected</div>
-
-            <div class="section-title">🎮 GAME MODES</div>
-            <button class="btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
-            <button class="btn" id="offcanvasModeFriend">👥 LOCAL TWO PLAYER</button>
-
-            <div class="section-title">⚙️ AI DIFFICULTY</div>
-            <div class="difficulty-buttons">
-                <button class="btn" id="offcanvasEasy">🟢 EASY</button>
-                <button class="btn" id="offcanvasMedium">🟡 MEDIUM</button>
-                <button class="btn active" id="offcanvasHard">🔴 HARD</button>
-            </div>
-
-            <div class="section-title">⚡ GAME CONTROLS</div>
-            <button class="btn btn-warning" id="offcanvasReset">🔄 RESET GAME</button>
+    <!-- Mobile Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item" id="mobileMenuBtn">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+            <span>Menu</span>
         </div>
+        <div class="nav-item" id="mobileResetBtn">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Reset</span>
+        </div>
+        <div class="nav-item" id="mobileCreateBtn">
+            <i class="bi bi-plus-circle"></i>
+            <span>Create</span>
+        </div>
+        <div class="nav-item" id="mobileJoinBtn">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>Join</span>
+        </div>
+        <div class="nav-item" id="mobileLeaveBtn">
+            <i class="bi bi-box-arrow-left"></i>
+            <span>Leave</span>
+        </div>
+    </div>
 
-        <div class="main-content">
-            <div class="game-wrapper">
-                <div class="board-container">
-                    <div class="board" id="chessboard"></div>
+    <div class="container-fluid p-0">
+        <div class="row g-0 min-vh-100">
+
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="p-3 p-lg-4">
+                    <!-- Logo -->
+                    <div class="text-center mb-4">
+                        <div class="bg-warning bg-opacity-10 rounded-4 p-3 mb-3">
+                            <i class="bi bi-chess-board fs-1 text-warning"></i>
+                        </div>
+                        <h3 class="text-warning fw-bold mb-1">CHESS MASTER</h3>
+                        <p class="text-white-50 small">Play with friends worldwide</p>
+                    </div>
+
+                    <!-- Turn Card -->
+                    <div class="turn-card p-3 mb-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="turn-icon" id="sidebarTurnIcon">♔</div>
+                            <div>
+                                <div class="text-white-50 small text-uppercase">Current Turn</div>
+                                <div class="text-warning fw-bold fs-4" id="sidebarTurnText">White's Turn</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Online Section -->
+                    <div class="mb-4">
+                        <div class="text-warning fw-semibold mb-3 small text-uppercase">
+                            <i class="bi bi-wifi"></i> ONLINE MULTIPLAYER
+                        </div>
+                        <button class="btn btn-warning btn-custom w-100 mb-2" id="createGameBtn">
+                            <i class="bi bi-plus-circle"></i> CREATE NEW GAME
+                        </button>
+                        <div id="gameCodeContainer" style="display: none;">
+                            <div class="room-code-box my-2" id="roomCodeDisplay"></div>
+                            <button class="btn btn-outline-info btn-custom w-100 mb-2" id="copyCodeBtn">
+                                <i class="bi bi-copy"></i> COPY CODE
+                            </button>
+                        </div>
+                        <input type="text" id="roomCodeInput"
+                            class="form-control bg-dark text-white border-warning rounded-pill mb-2 text-center"
+                            placeholder="Enter Game Code" maxlength="8" style="background: rgba(0,0,0,0.5) !important;">
+                        <button class="btn btn-outline-warning btn-custom w-100 mb-2" id="joinGameBtn">
+                            <i class="bi bi-box-arrow-in-right"></i> JOIN GAME
+                        </button>
+                        <button class="btn btn-danger btn-custom w-100 mb-2" id="disconnectBtn">
+                            <i class="bi bi-box-arrow-left"></i> LEAVE GAME
+                        </button>
+                        <div id="onlineStatus" class="status-badge text-white-50 mt-2">⚫ Not connected</div>
+                    </div>
+
+                    <!-- Game Modes -->
+                    <div class="mb-4">
+                        <div class="text-warning fw-semibold mb-3 small text-uppercase">
+                            <i class="bi bi-controller"></i> GAME MODES
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-secondary flex-fill" id="offcanvasModeAI">
+                                <i class="bi bi-robot"></i> VS AI
+                            </button>
+                            <button class="btn btn-secondary flex-fill" id="offcanvasModeFriend">
+                                <i class="bi bi-people"></i> LOCAL 2P
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI Difficulty -->
+                    <div class="mb-4">
+                        <div class="text-warning fw-semibold mb-3 small text-uppercase">
+                            <i class="bi bi-speedometer2"></i> AI DIFFICULTY
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-light flex-fill" id="offcanvasEasy">🟢 EASY</button>
+                            <button class="btn btn-sm btn-outline-light flex-fill" id="offcanvasMedium">🟡
+                                MEDIUM</button>
+                            <button class="btn btn-sm btn-warning flex-fill" id="offcanvasHard">🔴 HARD</button>
+                        </div>
+                    </div>
+
+                    <!-- Reset -->
+                    <button class="btn btn-outline-warning btn-custom w-100" id="offcanvasReset">
+                        <i class="bi bi-arrow-repeat"></i> RESET GAME
+                    </button>
+
+                    <div class="text-center text-white-50 small mt-4">
+                        <i class="bi bi-gender-male"></i> Castling Enabled • Pawn Promotion • Global Online
+                    </div>
                 </div>
-                <div class="status-text" id="statusMsg">✨ Castling enabled! King can move 2 squares toward rook ✨</div>
+            </div>
+
+            <!-- Main Game Area -->
+            <main class="col d-flex align-items-center justify-content-center p-3 p-md-4">
+                <div class="text-center">
+                    <div class="board-container mx-auto">
+                        <div class="board" id="chessboard"></div>
+                    </div>
+                    <div class="mt-4 p-3 glass-card d-inline-block w-100">
+                        <div class="text-warning fw-medium" id="statusMsg">
+                            <i class="bi bi-info-circle"></i> Click menu or use bottom nav!
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Promotion Modal -->
+    <div class="modal fade promo-modal" id="promotionModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-warning">
+                    <h5 class="modal-title text-warning mx-auto">✨ Choose Your Piece ✨</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <div class="promo-piece text-center" data-piece="q">♕<span>QUEEN</span></div>
+                        <div class="promo-piece text-center" data-piece="r">♖<span>ROOK</span></div>
+                        <div class="promo-piece text-center" data-piece="b">♗<span>BISHOP</span></div>
+                        <div class="promo-piece text-center" data-piece="n">♘<span>KNIGHT</span></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="promotionModal" class="modal">
-        <div class="modal-content">
-            <h2>✨ Choose Your Piece ✨</h2>
-            <div class="promotion-pieces">
-                <div class="promo-piece" data-piece="q">♕<span>QUEEN</span></div>
-                <div class="promo-piece" data-piece="r">♖<span>ROOK</span></div>
-                <div class="promo-piece" data-piece="b">♗<span>BISHOP</span></div>
-                <div class="promo-piece" data-piece="n">♘<span>KNIGHT</span></div>
-            </div>
-        </div>
-    </div>
-    <script src="script.JS"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+
+    </script>
 </body>
 
 </html>
