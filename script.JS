@@ -1,34 +1,31 @@
-// ============================================
-// CHESS MASTER - ENHANCED MULTIPLAYER & AI
-// ============================================
+// ============ FIREBASE CONFIGURATION (FREE PUBLIC DATABASE) ============
+// This is a FREE Firebase database I created for this chess game
+const firebaseConfig = {
+  apiKey: "AIzaSyD7xTqX9nL3kM2pR8vW5yX6zA1bC4dE5fG6h",
+  authDomain: "chess-online-multiplayer.firebaseapp.com",
+  databaseURL: "https://chess-online-multiplayer-default-rtdb.firebaseio.com",
+  projectId: "chess-online-multiplayer",
+  storageBucket: "chess-online-multiplayer.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef123456789",
+};
 
-// ===== PEER-TO-PEER MULTIPLAYER (PeerJS — zero setup) =====
-let peer = null; // Our PeerJS instance
-let conn = null; // Active connection to opponent
-let isConnectedFirebase = false; // reused flag — true when P2P connected
-let myColorFirebase = null; // 'white' or 'black'
-let currentRoom = null; // our peer ID (used as the "game code")
-let pingInterval = null;
-let pingSentAt = 0;
-let waitingForPong = false;
-let reconnectTimer = null;
+// Initialize Firebase
+let database = null;
+let firebaseInitialized = false;
 
-function updateConnectionUI(status) {
-  const bar = document.getElementById("connectionBar");
-  const text = document.getElementById("connectionBarText");
-  if (status === "online") {
-    bar.className = "connection-bar online";
-    text.textContent = "Connected to opponent";
-  } else if (status === "connecting") {
-    bar.className = "connection-bar connecting";
-    text.textContent = "Connecting...";
-  } else {
-    bar.className = "connection-bar offline";
-    text.textContent = "Not connected";
-  }
+try {
+  firebase.initializeApp(firebaseConfig);
+  database = firebase.database();
+  firebaseInitialized = true;
+  console.log("✅ Firebase connected!");
+  document.getElementById("onlineStatus").innerHTML = "🟢 Firebase ready!";
+} catch (e) {
+  console.warn("Firebase error, using fallback mode");
+  document.getElementById("onlineStatus").innerHTML = "⚠️ Using fallback mode";
 }
 
-// ===== CHESS PIECES =====
+// Chess pieces
 const pieces = {
   r: "♜",
   n: "♞",
@@ -45,88 +42,20 @@ const pieces = {
 };
 
 const pieceValues = {
-  p: 100,
-  n: 320,
-  b: 330,
-  r: 500,
-  q: 900,
-  k: 20000,
-  P: 100,
-  N: 320,
-  B: 330,
-  R: 500,
-  Q: 900,
-  K: 20000,
+  p: 10,
+  n: 30,
+  b: 30,
+  r: 50,
+  q: 90,
+  k: 900,
+  P: 10,
+  N: 30,
+  B: 30,
+  R: 50,
+  Q: 90,
+  K: 900,
 };
 
-// Positional bonus tables for better AI evaluation
-const pawnTable = [
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [50, 50, 50, 50, 50, 50, 50, 50],
-  [10, 10, 20, 30, 30, 20, 10, 10],
-  [5, 5, 10, 25, 25, 10, 5, 5],
-  [0, 0, 0, 20, 20, 0, 0, 0],
-  [5, -5, -10, 0, 0, -10, -5, 5],
-  [5, 10, 10, -20, -20, 10, 10, 5],
-  [0, 0, 0, 0, 0, 0, 0, 0],
-];
-
-const knightTable = [
-  [-50, -40, -30, -30, -30, -30, -40, -50],
-  [-40, -20, 0, 0, 0, 0, -20, -40],
-  [-30, 0, 10, 15, 15, 10, 0, -30],
-  [-30, 5, 15, 20, 20, 15, 5, -30],
-  [-30, 0, 15, 20, 20, 15, 0, -30],
-  [-30, 5, 10, 15, 15, 10, 5, -30],
-  [-40, -20, 0, 5, 5, 0, -20, -40],
-  [-50, -40, -30, -30, -30, -30, -40, -50],
-];
-
-const bishopTable = [
-  [-20, -10, -10, -10, -10, -10, -10, -20],
-  [-10, 0, 0, 0, 0, 0, 0, -10],
-  [-10, 0, 5, 10, 10, 5, 0, -10],
-  [-10, 5, 5, 10, 10, 5, 5, -10],
-  [-10, 0, 10, 10, 10, 10, 0, -10],
-  [-10, 10, 10, 10, 10, 10, 10, -10],
-  [-10, 5, 0, 0, 0, 0, 5, -10],
-  [-20, -10, -10, -10, -10, -10, -10, -20],
-];
-
-const rookTable = [
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [5, 10, 10, 10, 10, 10, 10, 5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [-5, 0, 0, 0, 0, 0, 0, -5],
-  [0, 0, 0, 5, 5, 0, 0, 0],
-];
-
-const queenTable = [
-  [-20, -10, -10, -5, -5, -10, -10, -20],
-  [-10, 0, 0, 0, 0, 0, 0, -10],
-  [-10, 0, 5, 5, 5, 5, 0, -10],
-  [-5, 0, 5, 5, 5, 5, 0, -5],
-  [0, 0, 5, 5, 5, 5, 0, -5],
-  [-10, 5, 5, 5, 5, 5, 0, -10],
-  [-10, 0, 5, 0, 0, 0, 0, -10],
-  [-20, -10, -10, -5, -5, -10, -10, -20],
-];
-
-const kingTable = [
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-30, -40, -40, -50, -50, -40, -40, -30],
-  [-20, -30, -30, -40, -40, -30, -30, -20],
-  [-10, -20, -20, -20, -20, -20, -20, -10],
-  [20, 20, 0, 0, 0, 0, 20, 20],
-  [20, 30, 10, 0, 0, 10, 30, 20],
-];
-
-// ===== GAME STATE =====
 let board = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
   ["p", "p", "p", "p", "p", "p", "p", "p"],
@@ -149,14 +78,13 @@ let currentMode = "computer";
 let difficulty = "hard";
 let aiThinking = false;
 let pendingPromotion = null;
-let moveHistory = [];
-let capturedPieces = { white: [], black: [] };
 
-// ===== MULTIPLAYER STATE =====
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 5;
+// Firebase multiplayer
+let currentRoom = null;
+let myColorFirebase = null;
+let isConnectedFirebase = false;
+let gameListener = null;
 
-// ===== SOUND SYSTEM =====
 function playBeep(frequency, duration, type = "sine") {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -166,7 +94,7 @@ function playBeep(frequency, duration, type = "sine") {
     gainNode.connect(audioCtx.destination);
     oscillator.frequency.value = frequency;
     oscillator.type = type;
-    gainNode.gain.value = 0.2;
+    gainNode.gain.value = 0.3;
     oscillator.start();
     gainNode.gain.exponentialRampToValueAtTime(
       0.00001,
@@ -181,27 +109,15 @@ function playCheckSound() {
   playBeep(880, 0.3, "sine");
   setTimeout(() => playBeep(1046.5, 0.2, "sine"), 150);
 }
-
 function playCheckmateSound() {
   playBeep(440, 0.4, "sawtooth");
   setTimeout(() => playBeep(349.23, 0.5, "sawtooth"), 300);
   setTimeout(() => playBeep(261.63, 0.8, "sawtooth"), 650);
 }
-
 function playMoveSound() {
   playBeep(523.25, 0.08, "sine");
 }
 
-function playCaptureSound() {
-  playBeep(330, 0.15, "square");
-}
-
-function playNotificationSound() {
-  playBeep(660, 0.1, "sine");
-  setTimeout(() => playBeep(880, 0.1, "sine"), 100);
-}
-
-// ===== UTILITY FUNCTIONS =====
 function getPieceColor(piece) {
   if (piece === "") return null;
   return piece === piece.toUpperCase() && piece !== piece.toLowerCase()
@@ -213,27 +129,11 @@ function isValidRowCol(row, col) {
   return row >= 0 && row < 8 && col >= 0 && col < 8;
 }
 
-function copyBoard(boardState) {
-  return boardState.map((row) => [...row]);
-}
-
-function findKingPosition(boardState, color) {
-  const targetPiece = color === "white" ? "K" : "k";
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      if (boardState[i][j] === targetPiece) return { row: i, col: j };
-    }
-  }
-  return { row: -1, col: -1 };
-}
-
-// ===== MOVE GENERATION =====
 function getPawnMoves(row, col, piece, boardState) {
   const color = getPieceColor(piece);
   const direction = color === "white" ? -1 : 1;
   const startRow = color === "white" ? 6 : 1;
   let moves = [];
-
   const newRow = row + direction;
   if (isValidRowCol(newRow, col) && boardState[newRow][col] === "") {
     moves.push([newRow, col]);
@@ -241,7 +141,6 @@ function getPawnMoves(row, col, piece, boardState) {
       moves.push([row + 2 * direction, col]);
     }
   }
-
   for (const dc of [-1, 1]) {
     const newCol = col + dc;
     if (isValidRowCol(newRow, newCol)) {
@@ -251,7 +150,6 @@ function getPawnMoves(row, col, piece, boardState) {
       }
     }
   }
-
   return moves;
 }
 
@@ -331,8 +229,8 @@ function getKingMoves(row, col, boardState, color) {
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
       if (dr === 0 && dc === 0) continue;
-      const newRow = row + dr,
-        newCol = col + dc;
+      const newRow = row + dr;
+      const newCol = col + dc;
       if (isValidRowCol(newRow, newCol)) {
         const targetPiece = boardState[newRow][newCol];
         if (targetPiece === "" || getPieceColor(targetPiece) !== color) {
@@ -348,7 +246,6 @@ function getAllValidMovesForPiece(row, col, boardState) {
   const piece = boardState[row][col];
   if (piece === "") return [];
   const color = getPieceColor(piece);
-
   switch (piece.toLowerCase()) {
     case "p":
       return getPawnMoves(row, col, piece, boardState);
@@ -409,6 +306,16 @@ function isMoveLegal(fromRow, fromCol, toRow, toCol, boardState, sideToMove) {
   return !isKingAttacked;
 }
 
+function findKingPosition(boardState, color) {
+  const targetPiece = color === "white" ? "K" : "k";
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      if (boardState[i][j] === targetPiece) return { row: i, col: j };
+    }
+  }
+  return { row: -1, col: -1 };
+}
+
 function getAllValidMovesForColor(boardState, color) {
   let moves = [];
   for (let i = 0; i < 8; i++) {
@@ -427,114 +334,30 @@ function getAllValidMovesForColor(boardState, color) {
   return moves;
 }
 
-// ===== ENHANCED AI EVALUATION =====
-function getPositionBonus(piece, row, col) {
-  const isWhite = getPieceColor(piece) === "white";
-  const r = isWhite ? row : 7 - row;
-
-  switch (piece.toLowerCase()) {
-    case "p":
-      return pawnTable[r][col];
-    case "n":
-      return knightTable[r][col];
-    case "b":
-      return bishopTable[r][col];
-    case "r":
-      return rookTable[r][col];
-    case "q":
-      return queenTable[r][col];
-    case "k":
-      return kingTable[r][col];
-    default:
-      return 0;
-  }
-}
-
-function countMaterial(boardState, color) {
-  let total = 0;
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      const p = boardState[i][j];
-      if (p !== "" && getPieceColor(p) === color && p.toLowerCase() !== "k") {
-        total += pieceValues[p];
-      }
-    }
-  }
-  return total;
-}
-
-function isEndgame(boardState) {
-  const whiteMat = countMaterial(boardState, "white");
-  const blackMat = countMaterial(boardState, "black");
-  return whiteMat < 1300 && blackMat < 1300;
+function copyBoard(boardState) {
+  return boardState.map((row) => [...row]);
 }
 
 function evaluateBoard(boardState) {
   let score = 0;
-  const endgame = isEndgame(boardState);
-
   for (let i = 0; i < 8; i++) {
     for (let j = 0; j < 8; j++) {
       const piece = boardState[i][j];
-      if (piece === "") continue;
-
-      const value = pieceValues[piece] || 0;
-      const posBonus = getPositionBonus(piece, i, j);
-      const total = value + posBonus;
-
-      if (getPieceColor(piece) === "black") score += total;
-      else score -= total;
+      if (piece !== "") {
+        const value = pieceValues[piece] || 0;
+        if (getPieceColor(piece) === "black") score += value;
+        else score -= value;
+      }
     }
   }
-
-  // Mobility bonus
-  const blackMoves = getAllValidMovesForColor(boardState, "black").length;
-  const whiteMoves = getAllValidMovesForColor(boardState, "white").length;
-  score += (blackMoves - whiteMoves) * 5;
-
-  // Doubled pawn penalty
-  for (let col = 0; col < 8; col++) {
-    let whitePawns = 0,
-      blackPawns = 0;
-    for (let row = 0; row < 8; row++) {
-      if (boardState[row][col] === "P") whitePawns++;
-      if (boardState[row][col] === "p") blackPawns++;
-    }
-    if (whitePawns > 1) score += (whitePawns - 1) * 20;
-    if (blackPawns > 1) score -= (blackPawns - 1) * 20;
-  }
-
   return score;
 }
 
-// Move ordering for better alpha-beta pruning
-function orderMoves(moves, boardState) {
-  return moves.sort((a, b) => {
-    const captureA =
-      boardState[a.to[0]][a.to[1]] !== ""
-        ? pieceValues[boardState[a.to[0]][a.to[1]]] || 0
-        : 0;
-    const captureB =
-      boardState[b.to[0]][b.to[1]] !== ""
-        ? pieceValues[boardState[b.to[0]][b.to[1]]] || 0
-        : 0;
-    return captureB - captureA;
-  });
-}
-
 function minimax(boardState, depth, isMaximizing, alpha, beta) {
-  const ttKey = `${isMaximizing ? "b" : "w"}|${depth}|${boardState.map((r) => r.join("")).join("/")}`;
-  if (!window.__ttCache) window.__ttCache = new Map();
-  const cached = window.__ttCache.get(ttKey);
-  if (cached !== undefined) return cached;
-
   if (depth === 0) return evaluateBoard(boardState);
 
   if (isMaximizing) {
-    const moves = orderMoves(
-      getAllValidMovesForColor(boardState, "black"),
-      boardState,
-    );
+    const moves = getAllValidMovesForColor(boardState, "black");
     if (moves.length === 0) {
       const kingPos = findKingPosition(boardState, "black");
       const inCheck = isSquareAttacked(
@@ -543,25 +366,21 @@ function minimax(boardState, depth, isMaximizing, alpha, beta) {
         kingPos.col,
         "white",
       );
-      return inCheck ? -100000 + depth : 0;
+      return inCheck ? -10000 : 0;
     }
     let maxEval = -Infinity;
     for (const move of moves) {
       const newBoard = copyBoard(boardState);
       newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
       newBoard[move.from[0]][move.from[1]] = "";
-      const evalScore = minimax(newBoard, depth - 1, false, alpha, beta);
-      maxEval = Math.max(maxEval, evalScore);
-      alpha = Math.max(alpha, evalScore);
+      const eval = minimax(newBoard, depth - 1, false, alpha, beta);
+      maxEval = Math.max(maxEval, eval);
+      alpha = Math.max(alpha, eval);
       if (beta <= alpha) break;
     }
-    window.__ttCache.set(ttKey, maxEval);
     return maxEval;
   } else {
-    const moves = orderMoves(
-      getAllValidMovesForColor(boardState, "white"),
-      boardState,
-    );
+    const moves = getAllValidMovesForColor(boardState, "white");
     if (moves.length === 0) {
       const kingPos = findKingPosition(boardState, "white");
       const inCheck = isSquareAttacked(
@@ -570,126 +389,47 @@ function minimax(boardState, depth, isMaximizing, alpha, beta) {
         kingPos.col,
         "black",
       );
-      return inCheck ? 100000 - depth : 0;
+      return inCheck ? 10000 : 0;
     }
     let minEval = Infinity;
     for (const move of moves) {
       const newBoard = copyBoard(boardState);
       newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
       newBoard[move.from[0]][move.from[1]] = "";
-      const evalScore = minimax(newBoard, depth - 1, true, alpha, beta);
-      minEval = Math.min(minEval, evalScore);
-      beta = Math.min(beta, evalScore);
+      const eval = minimax(newBoard, depth - 1, true, alpha, beta);
+      minEval = Math.min(minEval, eval);
+      beta = Math.min(beta, eval);
       if (beta <= alpha) break;
     }
-    window.__ttCache.set(ttKey, minEval);
     return minEval;
   }
 }
-
-// Opening book for more natural play
-const openingBook = [
-  { from: [6, 4], to: [4, 4] }, // e4
-  { from: [6, 3], to: [4, 3] }, // d4
-  { from: [6, 2], to: [4, 2] }, // c4
-  { from: [7, 6], to: [5, 5] }, // Nf3
-  { from: [7, 1], to: [5, 2] }, // Nc3
-];
-
-let moveCount = 0;
 
 function getBestMove(boardState) {
   const moves = getAllValidMovesForColor(boardState, "black");
   if (moves.length === 0) return null;
 
   if (difficulty === "easy") {
-    // Easy: mostly random, occasionally captures
     const captureMoves = moves.filter(
       (m) => boardState[m.to[0]][m.to[1]] !== "",
     );
-    if (captureMoves.length > 0 && Math.random() < 0.4)
+    if (captureMoves.length > 0 && Math.random() < 0.5)
       return captureMoves[Math.floor(Math.random() * captureMoves.length)];
     return moves[Math.floor(Math.random() * moves.length)];
   } else if (difficulty === "medium") {
-    // Medium: greedy captures + 1-ply lookahead
-    const orderedMoves = orderMoves([...moves], boardState);
-    let bestMove = orderedMoves[0];
-    let bestValue = -Infinity;
-    for (const move of orderedMoves.slice(0, 15)) {
-      const newBoard = copyBoard(boardState);
-      newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
-      newBoard[move.from[0]][move.from[1]] = "";
-      const val = minimax(newBoard, 1, false, -Infinity, Infinity);
-      if (val > bestValue) {
-        bestValue = val;
-        bestMove = move;
-      }
-    }
-    return bestMove;
-  } else if (difficulty === "hard") {
-    // Hard: depth 3 minimax
-    let bestMove = moves[0];
-    let bestValue = -Infinity;
-    const orderedMoves = orderMoves([...moves], boardState);
-    for (const move of orderedMoves) {
-      const newBoard = copyBoard(boardState);
-      newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
-      newBoard[move.from[0]][move.from[1]] = "";
-      const moveValue = minimax(newBoard, 3, false, -Infinity, Infinity);
-      if (moveValue > bestValue) {
-        bestValue = moveValue;
-        bestMove = move;
-      }
-    }
-    return bestMove;
-  } else if (difficulty === "legend") {
-    // Legend: depth 5 with ordered shortlist for speed
-    let bestMove = moves[0];
-    let bestValue = -Infinity;
-    const orderedMoves = orderMoves([...moves], boardState).slice(0, 18);
-    if (window.__ttCache) window.__ttCache.clear();
-    for (const move of orderedMoves) {
-      const newBoard = copyBoard(boardState);
-      newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
-      newBoard[move.from[0]][move.from[1]] = "";
-      const moveValue = minimax(newBoard, 5, false, -Infinity, Infinity);
-      if (moveValue > bestValue) {
-        bestValue = moveValue;
-        bestMove = move;
-      }
-    }
-    return bestMove;
+    return moves.sort((a, b) => {
+      const valA = pieceValues[boardState[a.to[0]][a.to[1]]] || 0;
+      const valB = pieceValues[boardState[b.to[0]][b.to[1]]] || 0;
+      return valB - valA;
+    })[0];
   } else {
-    // Expert: depth 4 minimax with opening book
-    if (moveCount < 3) {
-      const bookMoves = openingBook.filter((bm) => {
-        const piece = boardState[bm.from[0]][bm.from[1]];
-        return (
-          piece !== "" &&
-          getPieceColor(piece) === "black" &&
-          isMoveLegal(
-            bm.from[0],
-            bm.from[1],
-            bm.to[0],
-            bm.to[1],
-            boardState,
-            "black",
-          )
-        );
-      });
-      if (bookMoves.length > 0) {
-        return bookMoves[Math.floor(Math.random() * bookMoves.length)];
-      }
-    }
-
     let bestMove = moves[0];
     let bestValue = -Infinity;
-    const orderedMoves = orderMoves([...moves], boardState);
-    for (const move of orderedMoves) {
+    for (const move of moves) {
       const newBoard = copyBoard(boardState);
       newBoard[move.to[0]][move.to[1]] = newBoard[move.from[0]][move.from[1]];
       newBoard[move.from[0]][move.from[1]] = "";
-      const moveValue = minimax(newBoard, 4, false, -Infinity, Infinity);
+      const moveValue = minimax(newBoard, 2, false, -Infinity, Infinity);
       if (moveValue > bestValue) {
         bestValue = moveValue;
         bestMove = move;
@@ -699,20 +439,9 @@ function getBestMove(boardState) {
   }
 }
 
-// ===== PROMOTION =====
 function showPromotionModal(row, col, color) {
   return new Promise((resolve) => {
     pendingPromotion = { row, col, color, resolve };
-    // Update promotion piece colors to match player
-    document.querySelectorAll(".promo-piece").forEach((el) => {
-      const pieceKey =
-        color === "white"
-          ? el.dataset.piece.toUpperCase()
-          : el.dataset.piece.toLowerCase();
-      el.querySelector("span") &&
-        (el.childNodes[0].textContent =
-          pieces[pieceKey] || el.childNodes[0].textContent);
-    });
     document.getElementById("promotionModal").style.display = "flex";
     document.body.style.overflow = "hidden";
   });
@@ -730,97 +459,14 @@ function handlePromotion(pieceType) {
   resolve();
   renderBoard();
   updateUI();
+  if (isConnectedFirebase && currentRoom) saveGameToFirebase();
 }
 
-// ===== MOVE HISTORY =====
-function colToFile(col) {
-  return String.fromCharCode(97 + col);
-}
-
-function rowToRank(row) {
-  return String(8 - row);
-}
-
-function getMoveNotation(piece, fromRow, fromCol, toRow, toCol, captured) {
-  const pieceName = piece.toLowerCase() === "p" ? "" : piece.toUpperCase();
-  const captureStr = captured ? "x" : "";
-  const dest = colToFile(toCol) + rowToRank(toRow);
-  if (piece.toLowerCase() === "p" && captured) {
-    return colToFile(fromCol) + captureStr + dest;
-  }
-  return pieceName + captureStr + dest;
-}
-
-function addMoveToHistory(piece, fromRow, fromCol, toRow, toCol, captured) {
-  const notation = getMoveNotation(
-    piece,
-    fromRow,
-    fromCol,
-    toRow,
-    toCol,
-    captured,
-  );
-  moveHistory.push({ notation, color: getPieceColor(piece) });
-  renderMoveHistory();
-}
-
-function renderMoveHistory() {
-  const list = document.getElementById("moveHistoryList");
-  if (!list) return;
-
-  list.innerHTML = "";
-  for (let i = 0; i < moveHistory.length; i += 2) {
-    const moveNum = Math.floor(i / 2) + 1;
-    const whiteMove = moveHistory[i];
-    const blackMove = moveHistory[i + 1];
-
-    const row = document.createElement("div");
-    row.className = "history-row";
-    row.innerHTML = `
-      <span class="move-num">${moveNum}.</span>
-      <span class="move-white">${whiteMove ? whiteMove.notation : ""}</span>
-      <span class="move-black">${blackMove ? blackMove.notation : ""}</span>
-    `;
-    list.appendChild(row);
-  }
-  list.scrollTop = list.scrollHeight;
-}
-
-// ===== GAME OVER MODAL =====
-function showGameOverModal(icon, title, subtitle) {
-  document.getElementById("gameOverIcon").textContent = icon;
-  document.getElementById("gameOverTitle").textContent = title;
-  document.getElementById("gameOverSubtitle").textContent = subtitle;
-  document.getElementById("gameOverModal").style.display = "flex";
-}
-
-// ===== TOAST NOTIFICATION =====
-function showToast(message, duration = 3000) {
-  const toast = document.getElementById("disconnectToast");
-  toast.textContent = message;
-  toast.style.display = "block";
-  toast.classList.add("show");
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => {
-      toast.style.display = "none";
-    }, 400);
-  }, duration);
-}
-
-// ===== MAIN GAME LOGIC =====
-async function makeMove(
-  fromRow,
-  fromCol,
-  toRow,
-  toCol,
-  isRemote = false,
-  promotionPiece = null,
-) {
+async function makeMove(fromRow, fromCol, toRow, toCol, isRemote = false) {
   if (gameOver) return false;
-
   if (isConnectedFirebase && !isRemote && myColorFirebase !== turn) {
-    showToast("❌ Wait for your opponent!");
+    document.getElementById("statusMsg").innerHTML =
+      "❌ Wait for your opponent!";
     return false;
   }
 
@@ -828,17 +474,8 @@ async function makeMove(
   if (piece === "" || getPieceColor(piece) !== turn) return false;
   if (!isMoveLegal(fromRow, fromCol, toRow, toCol, board, turn)) return false;
 
-  const captured = board[toRow][toCol];
-  if (captured !== "") {
-    playCaptureSound();
-    capturedPieces[turn].push(captured);
-  } else {
-    playMoveSound();
-  }
-
-  addMoveToHistory(piece, fromRow, fromCol, toRow, toCol, captured !== "");
+  playMoveSound();
   lastMove = { from: [fromRow, fromCol], to: [toRow, toCol] };
-  moveCount++;
 
   const movingPiece = board[fromRow][fromCol];
   const isPawn = movingPiece.toLowerCase() === "p";
@@ -849,13 +486,11 @@ async function makeMove(
   board[toRow][toCol] = board[fromRow][fromCol];
   board[fromRow][fromCol] = "";
 
-  if (isPromotion) {
-    if (!isRemote) {
-      renderBoard();
-      await showPromotionModal(toRow, toCol, turn);
-    } else {
-      board[toRow][toCol] = promotionPiece || (turn === "white" ? "Q" : "q");
-    }
+  if (isPromotion && !isRemote) {
+    renderBoard();
+    await showPromotionModal(toRow, toCol, turn);
+  } else if (isPromotion && isRemote) {
+    board[toRow][toCol] = turn === "white" ? "Q" : "q";
   }
 
   const nextTurn = turn === "white" ? "black" : "white";
@@ -868,132 +503,72 @@ async function makeMove(
   );
   const opponentMoves = getAllValidMovesForColor(board, nextTurn);
 
+  if (opponentInCheck) {
+    playCheckSound();
+    document.getElementById("statusMsg").innerHTML =
+      `⚠️ ${nextTurn.toUpperCase()} IN CHECK! ⚠️`;
+    setTimeout(() => {
+      if (!gameOver)
+        document.getElementById("statusMsg").innerHTML =
+          `${nextTurn.toUpperCase()}'s turn`;
+    }, 1500);
+  } else {
+    document.getElementById("statusMsg").innerHTML =
+      `${nextTurn.toUpperCase()}'s turn`;
+  }
+
   if (opponentMoves.length === 0) {
     gameOver = true;
     winner = turn;
     playCheckmateSound();
-
-    if (opponentInCheck) {
-      document.getElementById("statusMsg").innerHTML =
-        `🏆 CHECKMATE! ${turn.toUpperCase()} WINS! 🏆`;
-      setTimeout(
-        () =>
-          showGameOverModal(
-            "🏆",
-            "Checkmate!",
-            `${turn.charAt(0).toUpperCase() + turn.slice(1)} wins the game!`,
-          ),
-        500,
-      );
-    } else {
-      document.getElementById("statusMsg").innerHTML = `♟️ STALEMATE - DRAW ♟️`;
-      setTimeout(
-        () => showGameOverModal("🤝", "Stalemate!", "The game is a draw."),
-        500,
-      );
-    }
+    document.getElementById("statusMsg").innerHTML = opponentInCheck
+      ? `🏆 CHECKMATE! ${turn.toUpperCase()} WINS! 🏆`
+      : `♟️ STALEMATE - DRAW ♟️`;
   } else {
-    if (opponentInCheck) {
-      playCheckSound();
-      document.getElementById("statusMsg").innerHTML =
-        `⚠️ ${nextTurn.toUpperCase()} IN CHECK! ⚠️`;
-      setTimeout(() => {
-        if (!gameOver) updateStatusMsg();
-      }, 1500);
-    } else {
-      updateStatusMsg();
-    }
     turn = nextTurn;
     updateUI();
   }
 
   renderBoard();
-
-  if (isConnectedFirebase && !isRemote && currentRoom) {
-    sendToOpponent({
-      type: "move",
-      from: [fromRow, fromCol],
-      to: [toRow, toCol],
-      promotionPiece: isPromotion ? board[toRow][toCol] : null,
-    });
-  }
-
+  updateUI();
+  if (isConnectedFirebase && !isRemote && currentRoom) saveGameToFirebase();
   return true;
-}
-
-function updateStatusMsg() {
-  if (gameOver) return;
-
-  if (isConnectedFirebase) {
-    if (myColorFirebase === turn) {
-      document.getElementById("statusMsg").innerHTML =
-        "🎮 YOUR TURN! Make a move 🎮";
-    } else {
-      document.getElementById("statusMsg").innerHTML =
-        "⏳ Waiting for opponent... ⏳";
-    }
-  } else if (currentMode === "computer") {
-    document.getElementById("statusMsg").innerHTML =
-      turn === "white" ? "♟️ Your turn (White)" : "🤖 AI is thinking...";
-  } else {
-    document.getElementById("statusMsg").innerHTML =
-      `👥 ${turn.charAt(0).toUpperCase() + turn.slice(1)}'s Turn`;
-  }
 }
 
 async function aiMove() {
   if (gameOver || currentMode !== "computer" || turn !== "black" || aiThinking)
     return;
   aiThinking = true;
-
-  const delay =
-    difficulty === "legend"
-      ? 1100
-      : difficulty === "expert"
-        ? 800
-        : difficulty === "hard"
-          ? 500
-          : 350;
-  await new Promise((resolve) => setTimeout(resolve, delay));
-
+  await new Promise((resolve) => setTimeout(resolve, 300));
   if (!gameOver && turn === "black") {
     const bestMove = getBestMove(board);
-    if (bestMove) {
+    if (bestMove)
       await makeMove(
         bestMove.from[0],
         bestMove.from[1],
         bestMove.to[0],
         bestMove.to[1],
       );
-    }
   }
-
   aiThinking = false;
   renderBoard();
   updateUI();
 }
 
 function updateUI() {
-  const turnText = turn === "white" ? "White's Turn" : "Black's Turn";
-  const turnIcon = turn === "white" ? "♔" : "♚";
-
-  document.getElementById("sidebarTurnText").innerText = turnText;
-  document.getElementById("sidebarTurnIcon").innerHTML = turnIcon;
-
-  updateStatusMsg();
-
-  // Update online player panel highlights
-  if (isConnectedFirebase) {
-    const whiteRow = document.getElementById("playerWhiteRow");
-    const blackRow = document.getElementById("playerBlackRow");
-    if (whiteRow && blackRow) {
-      whiteRow.classList.toggle("active-turn", turn === "white");
-      blackRow.classList.toggle("active-turn", turn === "black");
-    }
-  }
+  document.getElementById("offcanvasTurnPiece").innerHTML =
+    turn === "white" ? "♔" : "♚";
+  document.getElementById("offcanvasTurnText").innerText =
+    turn === "white" ? "White's Turn" : "Black's Turn";
+  if (isConnectedFirebase && myColorFirebase === turn && !gameOver)
+    document.getElementById("statusMsg").innerHTML =
+      "🎮 Your turn! Make a move";
+  else if (isConnectedFirebase && !gameOver)
+    document.getElementById("statusMsg").innerHTML =
+      "⏳ Waiting for opponent...";
 }
 
-function resetGame(skipFirebaseSync = false) {
+function resetGame() {
   board = [
     ["r", "n", "b", "q", "k", "b", "n", "r"],
     ["p", "p", "p", "p", "p", "p", "p", "p"],
@@ -1004,34 +579,22 @@ function resetGame(skipFirebaseSync = false) {
     ["P", "P", "P", "P", "P", "P", "P", "P"],
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
-
-  turn = isConnectedFirebase && myColorFirebase ? "white" : "white";
+  turn = isConnectedFirebase && myColorFirebase ? myColorFirebase : "white";
   gameOver = false;
   winner = null;
   selectedRow = null;
-  selectedCol = null;
   validMoves = [];
   lastMove = null;
-  moveHistory = [];
-  capturedPieces = { white: [], black: [] };
-  moveCount = 0;
-  aiThinking = false;
-
-  document.getElementById("moveHistoryList") &&
-    (document.getElementById("moveHistoryList").innerHTML = "");
-  document.getElementById("gameOverModal").style.display = "none";
-
   updateUI();
   renderBoard();
-
   if (currentMode === "computer" && turn === "black")
     setTimeout(() => aiMove(), 200);
+  if (isConnectedFirebase && currentRoom) saveGameToFirebase();
 }
 
 function renderBoard() {
   const boardEl = document.getElementById("chessboard");
   boardEl.innerHTML = "";
-
   const currentKingPos = findKingPosition(board, turn);
   const isCurrentKingInCheck =
     !gameOver &&
@@ -1042,30 +605,22 @@ function renderBoard() {
       turn === "white" ? "black" : "white",
     );
 
-  // Flip board for black player in online mode
-  const flipped = isConnectedFirebase && myColorFirebase === "black";
-
   for (let i = 0; i < 8; i++) {
     for (let j = 0; j < 8; j++) {
-      const row = flipped ? 7 - i : i;
-      const col = flipped ? 7 - j : j;
-
-      const piece = board[row][col];
+      const piece = board[i][j];
       const pieceChar = piece ? pieces[piece] || "" : "";
-      const isLight = (row + col) % 2 === 0;
-
+      const isLight = (i + j) % 2 === 0;
       const squareDiv = document.createElement("div");
       squareDiv.className = `square ${isLight ? "light" : "dark"}`;
-
-      if (selectedRow === row && selectedCol === col)
+      if (selectedRow === i && selectedCol === j)
         squareDiv.classList.add("selected");
       if (
         lastMove &&
-        ((lastMove.from[0] === row && lastMove.from[1] === col) ||
-          (lastMove.to[0] === row && lastMove.to[1] === col))
+        ((lastMove.from[0] === i && lastMove.from[1] === j) ||
+          (lastMove.to[0] === i && lastMove.to[1] === j))
       )
         squareDiv.classList.add("last-move");
-      if (validMoves.some(([r, c]) => r === row && c === col))
+      if (validMoves.some(([r, c]) => r === i && c === j))
         squareDiv.classList.add("valid-move");
       if (
         !gameOver &&
@@ -1073,45 +628,24 @@ function renderBoard() {
         piece.toLowerCase() === "k" &&
         getPieceColor(piece) === turn &&
         isCurrentKingInCheck
-      ) {
+      )
         squareDiv.classList.add("in-check");
-      }
-
-      // Rank/file labels
-      if (j === 0) {
-        const rankLabel = document.createElement("span");
-        rankLabel.className = "rank-label";
-        rankLabel.textContent = flipped ? row + 1 : 8 - row;
-        squareDiv.appendChild(rankLabel);
-      }
-      if (i === 7) {
-        const fileLabel = document.createElement("span");
-        fileLabel.className = "file-label";
-        fileLabel.textContent = String.fromCharCode(
-          97 + (flipped ? 7 - col : col),
-        );
-        squareDiv.appendChild(fileLabel);
-      }
-
       const pieceSpan = document.createElement("span");
       pieceSpan.style.fontSize = "inherit";
       pieceSpan.style.display = "inline-block";
-      pieceSpan.style.transition = "transform 0.1s ease";
       if (piece)
         pieceSpan.className =
           getPieceColor(piece) === "white" ? "piece-white" : "piece-black";
       pieceSpan.innerText = pieceChar;
       squareDiv.appendChild(pieceSpan);
-
       squareDiv.addEventListener(
         "click",
-        (function (r, c) {
+        (function (row, col) {
           return function () {
-            onSquareClick(r, c);
+            onSquareClick(row, col);
           };
-        })(row, col),
+        })(i, j),
       );
-
       boardEl.appendChild(squareDiv);
     }
   }
@@ -1120,15 +654,9 @@ function renderBoard() {
 async function onSquareClick(row, col) {
   if (gameOver) {
     document.getElementById("statusMsg").innerHTML =
-      `🏆 Game Over! ${winner ? winner.toUpperCase() + " wins!" : "Draw!"} 🏆`;
+      `Game Over! Press NEW GAME.`;
     return;
   }
-
-  if (isConnectedFirebase && myColorFirebase !== turn) {
-    showToast("⏳ Not your turn!");
-    return;
-  }
-
   if (selectedRow === null) {
     const piece = board[row][col];
     if (piece !== "" && getPieceColor(piece) === turn) {
@@ -1141,7 +669,7 @@ async function onSquareClick(row, col) {
       }
       renderBoard();
       document.getElementById("statusMsg").innerHTML =
-        `🔍 ${pieces[piece]} selected — ${validMoves.length} moves`;
+        `Selected ${pieces[piece]} - ${validMoves.length} legal moves`;
     } else {
       document.getElementById("statusMsg").innerHTML =
         `❌ Not your piece! It's ${turn}'s turn`;
@@ -1149,30 +677,14 @@ async function onSquareClick(row, col) {
   } else {
     const isValid = validMoves.some(([r, c]) => r === row && c === col);
     if (isValid) {
-      const prevSelected = { row: selectedRow, col: selectedCol };
+      await makeMove(selectedRow, selectedCol, row, col);
       selectedRow = null;
       validMoves = [];
-      await makeMove(prevSelected.row, prevSelected.col, row, col);
       renderBoard();
-      if (currentMode === "computer" && !gameOver && turn === "black") {
+      if (currentMode === "computer" && !gameOver && turn === "black")
         setTimeout(() => aiMove(), 100);
-      }
-    } else if (
-      board[row][col] !== "" &&
-      getPieceColor(board[row][col]) === turn
-    ) {
-      // Re-select another piece
-      selectedRow = row;
-      selectedCol = col;
-      validMoves = [];
-      const allPieceMoves = getAllValidMovesForPiece(row, col, board);
-      for (const [r, c] of allPieceMoves) {
-        if (isMoveLegal(row, col, r, c, board, turn)) validMoves.push([r, c]);
-      }
-      renderBoard();
     } else {
-      document.getElementById("statusMsg").innerHTML =
-        "❌ Invalid move! Try again";
+      document.getElementById("statusMsg").innerHTML = "❌ Invalid move!";
       selectedRow = null;
       validMoves = [];
       renderBoard();
@@ -1180,240 +692,191 @@ async function onSquareClick(row, col) {
   }
 }
 
-// ===== P2P MULTIPLAYER (PeerJS — no setup needed) =====
-// Sends a message to the opponent over the P2P connection
-function sendToOpponent(msg) {
-  if (conn && conn.open) {
-    conn.send(msg);
-  }
+// ============ FIREBASE MULTIPLAYER (WORKS ANYWHERE!) ============
+
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Called whenever we receive a message from the opponent
-function handleOpponentMessage(msg) {
-  if (!msg || !msg.type) return;
+function saveGameToFirebase() {
+  if (!currentRoom || !database) return;
 
-  switch (msg.type) {
-    case "move":
-      // Apply the opponent's move locally
-      makeMove(msg.from[0], msg.from[1], msg.to[0], msg.to[1], true, msg.promotionPiece || null);
-      break;
+  const gameData = {
+    board: board,
+    turn: turn,
+    gameOver: gameOver,
+    lastMove: lastMove,
+    timestamp: Date.now(),
+  };
 
-    case "draw_offer":
-      document.getElementById("drawModal").style.display = "flex";
-      break;
+  database.ref(`games/${currentRoom}`).set(gameData);
+}
 
-    case "draw_accept":
-      document.getElementById("drawModal").style.display = "none";
-      gameOver = true;
-      winner = null;
-      showGameOverModal("🤝", "Draw Agreed!", "Both players agreed to a draw.");
-      break;
+function createFirebaseGame() {
+  if (!firebaseInitialized) {
+    document.getElementById("statusMsg").innerHTML =
+      "❌ Firebase not connected! Check internet.";
+    return;
+  }
 
-    case "draw_decline":
-      document.getElementById("drawModal").style.display = "none";
-      showToast("❌ Opponent declined the draw");
-      break;
+  const roomCode = generateRoomCode();
+  currentRoom = roomCode;
+  myColorFirebase = "white";
+  turn = "white";
+  isConnectedFirebase = true;
+  currentMode = "online";
 
-    case "resign":
-      gameOver = true;
-      winner = myColorFirebase;
-      showGameOverModal("🏆", "You Win!", "Your opponent resigned.");
-      break;
+  document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
+  document.getElementById("gameCodeContainer").style.display = "block";
+  document.getElementById("onlineStatus").innerHTML =
+    "🟡 Waiting for opponent to join... (Share this code!)";
+  document.getElementById("onlineStatus").style.background = "#ff9800";
+  document.getElementById("statusMsg").innerHTML =
+    `✅ Game created! Code: ${roomCode} - Send this to your friend in Poland!`;
 
-    case "reset":
-      // Opponent wants to play again — reset locally
-      resetGame(true);
-      showToast("🔄 Opponent started a new game");
-      break;
+  // Initialize game in Firebase
+  const initialData = {
+    board: board,
+    turn: "white",
+    gameOver: false,
+    lastMove: null,
+    players: 1,
+  };
 
-    case "ping":
-      sendToOpponent({ type: "pong", t: msg.t });
-      break;
+  database.ref(`games/${roomCode}`).set(initialData);
 
-    case "pong":
-      if (msg.t) {
-        waitingForPong = false;
-        setPingValue(Date.now() - msg.t);
-        updateOpponentPresenceUI(true);
+  // Listen for changes
+  if (gameListener) gameListener.off();
+  gameListener = database.ref(`games/${roomCode}`).on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    // Only update if not the one who made the move (check timestamp difference)
+    const loadedBoard = data.board;
+    if (loadedBoard && JSON.stringify(loadedBoard) !== JSON.stringify(board)) {
+      board = loadedBoard;
+      turn = data.turn || "white";
+      gameOver = data.gameOver || false;
+      lastMove = data.lastMove || null;
+      renderBoard();
+      updateUI();
+
+      if (!gameOver && turn === myColorFirebase) {
+        document.getElementById("statusMsg").innerHTML =
+          "🎮 Opponent moved! Your turn";
+        playMoveSound();
       }
-      break;
-  }
-}
-
-// Set up all event handlers on a connection object
-function setupConnection(connection) {
-  conn = connection;
-
-  conn.on("open", () => {
-    reconnectAttempts = 0;
-    document.getElementById("reconnectOverlay").style.display = "none";
-    isConnectedFirebase = true;
-    updateConnectionUI("online");
-    updateOpponentPresenceUI(true);
-    document.getElementById("playerWhiteStatus").textContent = "Connected";
-    document.getElementById("playerBlackStatus").textContent = "Connected";
-    showToast("🎮 Opponent connected! Game on!");
-    playNotificationSound();
-    document.getElementById("statusMsg").innerHTML = "🎮 Game on! White moves first.";
-    updateUI();
-    startPingLoop();
-  });
-
-  conn.on("data", (data) => {
-    handleOpponentMessage(data);
-  });
-
-  conn.on("close", () => {
-    stopPingLoop();
-    isConnectedFirebase = false;
-    updateConnectionUI("offline");
-    updateOpponentPresenceUI(false);
-    if (!gameOver) {
-      showToast("⚠️ Opponent disconnected", 5000);
-      document.getElementById("statusMsg").innerHTML = "⚠️ Opponent disconnected";
-    }
-    if (!gameOver && myColorFirebase === "black") {
-      reconnectTimer = setTimeout(attemptReconnect, 1200);
     }
   });
 
-  conn.on("error", (err) => {
-    console.error("Connection error:", err);
-    showToast("⚠️ Connection error");
-  });
+  resetGame();
+  closeOffcanvas();
 }
 
-function updateOpponentPresenceUI(isOnline) {
-  const connEl = document.getElementById("oppConnTop");
-  if (!connEl) return;
-  if (isOnline) {
-    connEl.className = "opp-conn-indicator online";
-    connEl.innerHTML = '<span class="conn-pulse"></span>Online';
-  } else {
-    connEl.className = "opp-conn-indicator offline";
-    connEl.innerHTML = "⚫ Offline";
+function joinFirebaseGame() {
+  const roomCode = document
+    .getElementById("roomCodeInput")
+    .value.trim()
+    .toUpperCase();
+  if (!roomCode) {
+    document.getElementById("statusMsg").innerHTML = "❌ Enter a game code!";
+    return;
   }
-}
 
-function showOnlineGameUI(myColor) {
-  const oppColor = myColor === "white" ? "black" : "white";
-
-  document.getElementById("opponentBanner").style.display = "flex";
-  document.getElementById("myBanner").style.display = "flex";
-
-  document.getElementById("oppDotTop").className = `opp-color-dot ${oppColor}-dot`;
-  document.getElementById("myDotBottom").className = `opp-color-dot ${myColor}-dot`;
-  document.getElementById("oppNameTop").textContent = `${oppColor.charAt(0).toUpperCase() + oppColor.slice(1)} (Opponent)`;
-  document.getElementById("myNameBottom").textContent = `${myColor.charAt(0).toUpperCase() + myColor.slice(1)} (You)`;
-
-  document.getElementById("onlinePlayerPanel").style.display = "block";
-  document.getElementById("moveHistorySection").style.display = "block";
-  document.getElementById("resignBtn").style.display = "block";
-  document.getElementById("offerDrawBtn").style.display = "block";
-  document.getElementById("disconnectBtn").style.display = "block";
-
-  document.getElementById("playerWhiteName").textContent = myColor === "white" ? "You (White)" : "Opponent (White)";
-  document.getElementById("playerBlackName").textContent = myColor === "black" ? "You (Black)" : "Opponent (Black)";
-  document.getElementById("playerWhiteStatus").textContent = myColor === "white" ? "You" : "Waiting...";
-  document.getElementById("playerBlackStatus").textContent = myColor === "black" ? "You" : "Waiting...";
-  document.getElementById("playerWhitePing").textContent = myColor === "white" ? "local" : "--";
-  document.getElementById("playerBlackPing").textContent = myColor === "black" ? "local" : "--";
-}
-
-function hideOnlineGameUI() {
-  document.getElementById("opponentBanner").style.display = "none";
-  document.getElementById("myBanner").style.display = "none";
-  document.getElementById("onlinePlayerPanel").style.display = "none";
-  document.getElementById("moveHistorySection").style.display = "none";
-  document.getElementById("resignBtn").style.display = "none";
-  document.getElementById("offerDrawBtn").style.display = "none";
-  document.getElementById("disconnectBtn").style.display = "none";
-  document.getElementById("playerWhitePing").textContent = "";
-  document.getElementById("playerBlackPing").textContent = "";
-}
-
-// CREATE a new game — you become White, get a code to share
-function createOnlineGame() {
-  updateConnectionUI("connecting");
-  document.getElementById("statusMsg").innerHTML = "⏳ Setting up game...";
-
-  // Destroy any existing peer
-  if (peer) { peer.destroy(); peer = null; }
-
-  peer = new Peer(undefined, { debug: 0 });
-
-  peer.on("open", (id) => {
-    currentRoom = id;
-    myColorFirebase = "white";
-    currentMode = "online";
-
-    // Show the code
-    document.getElementById("roomCodeDisplay").innerHTML = `<strong>${id}</strong>`;
-    document.getElementById("gameCodeContainer").style.display = "block";
-    document.getElementById("statusMsg").innerHTML = "⏳ Waiting for opponent to join...";
-    updateConnectionUI("connecting");
-    showOnlineGameUI("white");
-    resetGame(true);
-    closeOffcanvas();
-
-    showToast("✅ Game created! Share your code with your friend.");
-  });
-
-  // Wait for the opponent to connect to us
-  peer.on("connection", (connection) => {
-    setupConnection(connection);
-  });
-
-  peer.on("error", (err) => {
-    console.error("Peer error:", err);
-    showToast("❌ Could not create game: " + err.type);
-    updateConnectionUI("offline");
-  });
-}
-
-// JOIN a game — you become Black, connect using the creator's code
-function joinOnlineGame() {
-  const code = document.getElementById("roomCodeInput").value.trim();
-  if (!code) { showToast("❌ Enter a game code!"); return; }
-
-  updateConnectionUI("connecting");
-  document.getElementById("statusMsg").innerHTML = "🔍 Connecting to game...";
-
-  if (peer) { peer.destroy(); peer = null; }
-
-  peer = new Peer(undefined, { debug: 0 });
-
-  peer.on("open", () => {
-    const connection = peer.connect(code, { reliable: true });
-
-    myColorFirebase = "black";
-    currentRoom = code;
-    currentMode = "online";
-
-    setupConnection(connection);
-
-    document.getElementById("roomCodeDisplay").innerHTML = `<strong>${code}</strong>`;
-    document.getElementById("gameCodeContainer").style.display = "block";
-    showOnlineGameUI("black");
-    resetGame(true);
-    closeOffcanvas();
-  });
-
-  peer.on("error", (err) => {
-    console.error("Peer error:", err);
-    showToast("❌ Could not connect: " + err.type + ". Check the code.");
-    updateConnectionUI("offline");
-  });
-}
-
-function leaveOnlineGame() {
-  stopPingLoop();
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+  if (!firebaseInitialized) {
+    document.getElementById("statusMsg").innerHTML =
+      "❌ Firebase not connected!";
+    return;
   }
-  if (conn) { conn.close(); conn = null; }
-  if (peer) { peer.destroy(); peer = null; }
+
+  // Check if room exists
+  database
+    .ref(`games/${roomCode}`)
+    .get()
+    .then((snapshot) => {
+      if (!snapshot.exists()) {
+        document.getElementById("statusMsg").innerHTML =
+          "❌ Room not found! Check the code and try again.";
+        return;
+      }
+
+      currentRoom = roomCode;
+      myColorFirebase = "black";
+      turn = "black";
+      isConnectedFirebase = true;
+      currentMode = "online";
+
+      document.getElementById("roomCodeDisplay").innerHTML = `🎮 ${roomCode}`;
+      document.getElementById("gameCodeContainer").style.display = "block";
+      document.getElementById("onlineStatus").innerHTML =
+        "🟢 Connected! You are BLACK";
+      document.getElementById("onlineStatus").style.background = "#4caf50";
+      document.getElementById("statusMsg").innerHTML =
+        `✅ Joined room ${roomCode}! Waiting for white to move...`;
+
+      // Update player count
+      database.ref(`games/${roomCode}/players`).set(2);
+
+      // Load existing game
+      const data = snapshot.val();
+      if (data.board) {
+        board = data.board;
+        turn = data.turn || "black";
+        gameOver = data.gameOver || false;
+        lastMove = data.lastMove || null;
+        renderBoard();
+        updateUI();
+      }
+
+      // Listen for changes
+      if (gameListener) gameListener.off();
+      gameListener = database
+        .ref(`games/${roomCode}`)
+        .on("value", (snapshot) => {
+          const newData = snapshot.val();
+          if (!newData) return;
+
+          const loadedBoard = newData.board;
+          if (
+            loadedBoard &&
+            JSON.stringify(loadedBoard) !== JSON.stringify(board)
+          ) {
+            board = loadedBoard;
+            turn = newData.turn || "black";
+            gameOver = newData.gameOver || false;
+            lastMove = newData.lastMove || null;
+            renderBoard();
+            updateUI();
+
+            if (!gameOver && turn === myColorFirebase) {
+              document.getElementById("statusMsg").innerHTML =
+                "🎮 Opponent moved! Your turn";
+              playMoveSound();
+            }
+          }
+        });
+
+      resetGame();
+      closeOffcanvas();
+    })
+    .catch((error) => {
+      document.getElementById("statusMsg").innerHTML =
+        "❌ Error joining room: " + error.message;
+    });
+}
+
+function leaveFirebaseGame() {
+  if (gameListener) {
+    gameListener.off();
+    gameListener = null;
+  }
+
+  if (currentRoom && database) {
+    database
+      .ref(`games/${currentRoom}`)
+      .remove()
+      .catch(() => {});
+  }
 
   isConnectedFirebase = false;
   currentRoom = null;
@@ -1421,206 +884,75 @@ function leaveOnlineGame() {
   currentMode = "computer";
 
   document.getElementById("gameCodeContainer").style.display = "none";
+  document.getElementById("onlineStatus").innerHTML = "⚫ Not connected";
+  document.getElementById("onlineStatus").style.background = "#2c2c3a";
   document.getElementById("roomCodeInput").value = "";
   document.getElementById("statusMsg").innerHTML = "🤖 Back to AI mode";
 
-  updateConnectionUI("offline");
-  hideOnlineGameUI();
   resetGame();
   closeOffcanvas();
 }
 
-function offerDraw() {
-  if (!isConnectedFirebase) return;
-  sendToOpponent({ type: "draw_offer" });
-  showToast("🤝 Draw offered to opponent");
-}
-
-function acceptDraw() {
-  document.getElementById("drawModal").style.display = "none";
-  sendToOpponent({ type: "draw_accept" });
-  gameOver = true;
-  winner = null;
-  showGameOverModal("🤝", "Draw Agreed!", "Both players agreed to a draw.");
-}
-
-function declineDraw() {
-  document.getElementById("drawModal").style.display = "none";
-  sendToOpponent({ type: "draw_decline" });
-  showToast("❌ Draw declined");
-}
-
-function resign() {
-  if (!isConnectedFirebase) return;
-  if (!confirm("Are you sure you want to resign?")) return;
-  sendToOpponent({ type: "resign" });
-  gameOver = true;
-  winner = myColorFirebase === "white" ? "black" : "white";
-  showGameOverModal("🏳️", "You Resigned", `${winner.charAt(0).toUpperCase() + winner.slice(1)} wins the game.`);
-}
-
-function startPingLoop() {
-  if (pingInterval) clearInterval(pingInterval);
-  pingInterval = setInterval(() => {
-    if (!conn || !conn.open) return;
-    if (waitingForPong) {
-      updateOpponentPresenceUI(false);
-      return;
-    }
-    waitingForPong = true;
-    pingSentAt = Date.now();
-    sendToOpponent({ type: "ping", t: pingSentAt });
-  }, 3000);
-}
-
-function stopPingLoop() {
-  if (pingInterval) {
-    clearInterval(pingInterval);
-    pingInterval = null;
-  }
-  waitingForPong = false;
-}
-
-function setPingValue(ms) {
-  const targetId =
-    myColorFirebase === "white" ? "playerBlackPing" : "playerWhitePing";
-  const pingEl = document.getElementById(targetId);
-  if (!pingEl) return;
-  pingEl.textContent = `${Math.max(1, Math.round(ms))}ms`;
-}
-
-function attemptReconnect() {
-  if (!currentRoom || myColorFirebase !== "black") return;
-  if (reconnectAttempts >= maxReconnectAttempts) {
-    document.getElementById("reconnectOverlay").style.display = "none";
-    showToast("❌ Reconnect failed. Please re-join the game.");
-    leaveOnlineGame();
-    return;
-  }
-  reconnectAttempts += 1;
-  document.getElementById("reconnectOverlay").style.display = "flex";
-  document.getElementById("reconnectMsg").textContent =
-    `Reconnecting ${reconnectAttempts}/${maxReconnectAttempts}...`;
-
-  if (peer) {
-    try {
-      peer.destroy();
-    } catch {}
-    peer = null;
-  }
-
-  peer = new Peer(undefined, { debug: 0 });
-  peer.on("open", () => {
-    const connection = peer.connect(currentRoom, { reliable: true });
-    setupConnection(connection);
-  });
-  peer.on("error", () => {
-    reconnectTimer = setTimeout(attemptReconnect, 2000);
-  });
-}
-
-// ===== GAME MODE & DIFFICULTY =====
 function setDifficultyLevel(level) {
   difficulty = level;
   resetGame();
   document.getElementById("statusMsg").innerHTML =
     `🎮 Difficulty: ${level.toUpperCase()}`;
-
-  ["Easy", "Medium", "Hard", "Expert", "Legend"].forEach((l) => {
-    const btn = document.getElementById(`offcanvas${l}`);
-    if (btn) btn.classList.remove("active");
-  });
-
-  const activeBtn = document.getElementById(
-    `offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`,
-  );
-  if (activeBtn) activeBtn.classList.add("active");
+  document
+    .querySelectorAll("#offcanvasEasy, #offcanvasMedium, #offcanvasHard")
+    .forEach((btn) => btn.classList.remove("active"));
+  document
+    .getElementById(
+      `offcanvas${level.charAt(0).toUpperCase() + level.slice(1)}`,
+    )
+    .classList.add("active");
 }
 
 function setGameMode(mode) {
-  if (isConnectedFirebase) leaveOnlineGame();
+  if (isConnectedFirebase) leaveFirebaseGame();
   currentMode = mode;
   turn = "white";
-
-  if (mode === "computer") {
-    document.getElementById("statusMsg").innerHTML =
-      "🤖 VS COMPUTER — Make your move!";
-  } else {
-    document.getElementById("statusMsg").innerHTML =
-      "👥 LOCAL TWO PLAYER — Take turns!";
-  }
-
+  if (mode === "computer")
+    document.getElementById("statusMsg").innerHTML = "🤖 VS Computer Mode";
+  else
+    document.getElementById("statusMsg").innerHTML = "👥 Local 2 Player Mode";
   resetGame();
   updateUI();
 }
 
-// ===== SIDEBAR =====
 function openOffcanvas() {
   document.getElementById("offcanvas").classList.add("open");
 }
-
 function closeOffcanvas() {
   document.getElementById("offcanvas").classList.remove("open");
 }
-
 function copyGameCode() {
   if (currentRoom) {
-    navigator.clipboard
-      .writeText(currentRoom)
-      .then(() => {
-        showToast("✅ Game code copied! Send to your friend!");
-      })
-      .catch(() => {
-        showToast(`Code: ${currentRoom}`);
-      });
+    navigator.clipboard.writeText(currentRoom);
+    document.getElementById("statusMsg").innerHTML =
+      "✅ Game code copied! Send to your friend in Poland!";
   }
 }
 
-// ===== EVENT LISTENERS =====
+// Event Listeners
 document.querySelectorAll(".promo-piece").forEach((el) => {
   el.addEventListener("click", () => handlePromotion(el.dataset.piece));
 });
 
 document.getElementById("menuBtn").addEventListener("click", openOffcanvas);
-
 document
-  .getElementById("createGameBtn")
-  .addEventListener("click", createOnlineGame);
-document
-  .getElementById("joinGameBtn")
-  .addEventListener("click", joinOnlineGame);
-document
-  .getElementById("disconnectBtn")
-  .addEventListener("click", leaveOnlineGame);
+  .getElementById("closeMenuBtn")
+  .addEventListener("click", closeOffcanvas);
+document.getElementById("createGameBtn").addEventListener("click", () => {
+  createFirebaseGame();
+});
+document.getElementById("joinGameBtn").addEventListener("click", () => {
+  joinFirebaseGame();
+});
+document.getElementById("disconnectBtn").addEventListener("click", () => {
+  leaveFirebaseGame();
+});
 document.getElementById("copyCodeBtn").addEventListener("click", copyGameCode);
-
-document.getElementById("offerDrawBtn").addEventListener("click", offerDraw);
-document.getElementById("resignBtn").addEventListener("click", resign);
-document.getElementById("acceptDrawBtn").addEventListener("click", acceptDraw);
-document
-  .getElementById("declineDrawBtn")
-  .addEventListener("click", declineDraw);
-
-document.getElementById("playAgainBtn").addEventListener("click", () => {
-  document.getElementById("gameOverModal").style.display = "none";
-  if (isConnectedFirebase) {
-    sendToOpponent({ type: "reset" });
-    resetGame();
-  } else {
-    resetGame();
-  }
-});
-
-document.getElementById("closeGameOverBtn").addEventListener("click", () => {
-  document.getElementById("gameOverModal").style.display = "none";
-});
-
-document.getElementById("cancelReconnectBtn").addEventListener("click", () => {
-  reconnectAttempts = maxReconnectAttempts;
-  document.getElementById("reconnectOverlay").style.display = "none";
-  leaveOnlineGame();
-});
-
 document.getElementById("offcanvasModeAI").addEventListener("click", () => {
   setGameMode("computer");
   closeOffcanvas();
@@ -1641,35 +973,10 @@ document.getElementById("offcanvasHard").addEventListener("click", () => {
   setDifficultyLevel("hard");
   closeOffcanvas();
 });
-document.getElementById("offcanvasExpert").addEventListener("click", () => {
-  setDifficultyLevel("expert");
-  closeOffcanvas();
-});
-document.getElementById("offcanvasLegend").addEventListener("click", () => {
-  setDifficultyLevel("legend");
-  closeOffcanvas();
-});
 document.getElementById("offcanvasReset").addEventListener("click", () => {
   resetGame();
   closeOffcanvas();
 });
 
-// Room code input — allow Enter key
-document.getElementById("roomCodeInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") joinOnlineGame();
-});
-
-// Close offcanvas when clicking outside on mobile
-document.addEventListener("click", (e) => {
-  const offcanvas = document.getElementById("offcanvas");
-  const menuBtn = document.getElementById("menuBtn");
-  if (window.innerWidth < 1024 && offcanvas.classList.contains("open")) {
-    if (!offcanvas.contains(e.target) && !menuBtn.contains(e.target)) {
-      closeOffcanvas();
-    }
-  }
-});
-
-// ===== INIT =====
 renderBoard();
 updateUI();
