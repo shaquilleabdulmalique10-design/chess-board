@@ -19,6 +19,7 @@ body {
     BlinkMacSystemFont,
     sans-serif;
   overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 /* Animated Background */
@@ -1084,5 +1085,65 @@ body::before {
 
   .game-over-content h2 {
     font-size: 22px;
+  }
+
+  .board-container {
+    width: min(95vw, 95vh);
+    height: min(95vw, 95vh);
+  }
+
+  .square {
+    font-size: calc(min(95vw, 95vh) / 10);
+  }
+
+  .offcanvas {
+    width: 300px;
+    padding: 20px 15px;
+  }
+
+  .sidebar-header h1 {
+    font-size: 24px;
+  }
+
+  .turn-value {
+    font-size: 18px;
+  }
+
+  .btn {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 320px) {
+  .board-container {
+    width: min(98vw, 98vh);
+    height: min(98vw, 98vh);
+  }
+
+  .square {
+    font-size: calc(min(98vw, 98vh) / 8);
+  }
+
+  .offcanvas {
+    width: 280px;
+    padding: 15px 10px;
+  }
+
+  .sidebar-header h1 {
+    font-size: 20px;
+  }
+
+  .turn-value {
+    font-size: 16px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
+  .game-wrapper {
+    padding: 10px;
   }
 }
