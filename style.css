@@ -1054,7 +1054,7 @@ body {
   padding: 0 8px env(safe-area-inset-bottom, 8px);
   align-items: center;
   justify-content: space-around;
-  z-index: 900;
+  z-index: 10050;
   box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
 }
 @media (min-width: 1024px) {
@@ -1148,7 +1148,7 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 950;
+  z-index: 900;
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -1162,7 +1162,7 @@ body {
   left: 0;
   right: 0;
   bottom: calc(var(--nav-h) - 6px);
-  z-index: 960;
+  z-index: 905;
   background: var(--bg2);
   border-radius: 24px 24px 0 0;
   border-top: 1px solid var(--border);
