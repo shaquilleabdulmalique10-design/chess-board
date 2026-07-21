@@ -1,188 +1,475 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>♜ Chess Master</title>
-  <!-- PeerJS — zero-setup P2P multiplayer, no account needed -->
+  <!-- Disable right-click context inspect hint, handled in JS -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<div class="app">
 
-  <!-- Mobile menu button -->
-  <button class="menu-btn" id="menuBtn">☰</button>
+  <!-- ══════════════════════════════════════════
+     WELCOME / LOGIN SCREEN
+══════════════════════════════════════════ -->
+  <div class="welcome-screen" id="welcomeScreen">
+    <div class="welcome-card">
+      <div class="welcome-icon">♜</div>
+      <h1 class="welcome-title">Chess Master</h1>
+      <p class="welcome-sub">Enter your username to play. Your games and stats are saved to this name.</p>
 
-  <!-- ===== SIDEBAR ===== -->
-  <div class="offcanvas" id="offcanvas">
-
-    <div class="sidebar-header">
-      <h1>♜ CHESS MASTER</h1>
-      <p>Play anywhere, anytime</p>
-    </div>
-
-    <!-- Turn indicator -->
-    <div class="turn-card">
-      <div class="turn-icon" id="sidebarTurnIcon">♔</div>
-      <div class="turn-info">
-        <div class="turn-label">CURRENT TURN</div>
-        <div class="turn-value" id="sidebarTurnText">White's Turn</div>
-      </div>
-    </div>
-
-    <!-- ===== ONLINE MULTIPLAYER ===== -->
-    <div class="section-title">🌐 ONLINE MULTIPLAYER</div>
-
-    <div id="connectionBar" class="connection-bar offline">
-      <span class="conn-dot"></span>
-      <span id="connectionBarText">Not connected</span>
-    </div>
-
-    <div id="onlinePanel">
-      <button class="btn btn-primary" id="createGameBtn">🎮 CREATE GAME</button>
-
-      <div id="gameCodeContainer" style="display:none;">
-        <div class="room-code-label">YOUR GAME CODE — share with friend</div>
-        <div class="room-code-box" id="roomCodeDisplay"></div>
-        <button class="btn btn-success" id="copyCodeBtn">📋 COPY CODE</button>
+      <div id="welcomeForm">
+        <input type="text" id="usernameInput" class="welcome-input" placeholder="Choose a username" maxlength="20"
+          autocomplete="off" spellcheck="false" />
+        <div class="welcome-hint" id="welcomeHint"></div>
+        <button class="action-btn primary" id="welcomeBtn" style="margin-top:12px;">
+          <span>♟</span> Enter Chess Master
+        </button>
       </div>
 
-      <div class="join-row">
-        <input type="text" id="roomCodeInput" placeholder="Paste friend's code" class="input-field" maxlength="36" autocomplete="off" autocorrect="off" spellcheck="false"/>
-        <button class="btn btn-primary" id="joinGameBtn">🔗 JOIN</button>
-      </div>
-
-      <button class="btn btn-danger" id="disconnectBtn" style="display:none;">🚪 LEAVE GAME</button>
-    </div>
-
-    <!-- Online player panel -->
-    <div id="onlinePlayerPanel" style="display:none;" class="player-panel">
-      <div class="player-row" id="playerWhiteRow">
-        <div class="player-color-dot white-dot"></div>
-        <div class="player-details">
-          <div class="player-name" id="playerWhiteName">White</div>
-          <div class="player-status" id="playerWhiteStatus">—</div>
+      <div class="welcome-returning" id="returningUser" style="display:none;">
+        <div class="returning-avatar" id="returningAvatar"></div>
+        <div class="returning-info">
+          <div class="returning-name" id="returningName"></div>
+          <div class="returning-stats" id="returningStats"></div>
         </div>
+        <button class="action-btn primary" id="continueBtn">▶ Continue</button>
+        <button class="action-btn ghost" id="switchUserBtn" style="margin-top:6px;">Switch User</button>
       </div>
-      <div class="player-divider">VS</div>
-      <div class="player-row" id="playerBlackRow">
-        <div class="player-color-dot black-dot"></div>
-        <div class="player-details">
-          <div class="player-name" id="playerBlackName">Black</div>
-          <div class="player-status" id="playerBlackStatus">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Move history -->
-    <div id="moveHistorySection" style="display:none;">
-      <div class="section-title" style="margin-top:12px;">📜 MOVE HISTORY</div>
-      <div id="moveHistoryList" class="move-history-list"></div>
-    </div>
-
-    <!-- ===== GAME MODES ===== -->
-    <div class="section-title">🎮 GAME MODES</div>
-    <button class="btn" id="offcanvasModeAI">🤖 VS COMPUTER</button>
-    <button class="btn" id="offcanvasModeFriend">👥 LOCAL 2 PLAYER</button>
-
-    <!-- ===== AI DIFFICULTY ===== -->
-    <div class="section-title">⚙️ AI DIFFICULTY</div>
-    <div class="difficulty-buttons">
-      <button class="btn" id="offcanvasEasy">🟢 EASY</button>
-      <button class="btn" id="offcanvasMedium">🟡 MEDIUM</button>
-      <button class="btn active" id="offcanvasHard">🔴 HARD</button>
-      <button class="btn" id="offcanvasExpert">⚫ EXPERT</button>
-    </div>
-
-    <!-- ===== CONTROLS ===== -->
-    <div class="section-title">⚡ CONTROLS</div>
-    <button class="btn btn-warning" id="offcanvasReset">🔄 NEW GAME</button>
-    <button class="btn" id="offerDrawBtn" style="display:none;">🤝 OFFER DRAW</button>
-    <button class="btn btn-danger" id="resignBtn" style="display:none;">🏳️ RESIGN</button>
-
-  </div><!-- /offcanvas -->
-
-  <!-- ===== MAIN BOARD AREA ===== -->
-  <div class="main-content">
-    <div class="game-wrapper">
-
-      <!-- Opponent info bar (online only) -->
-      <div id="opponentBanner" class="player-banner" style="display:none;">
-        <div class="banner-left">
-          <div class="banner-dot" id="oppDot"></div>
-          <span id="oppLabel">Opponent</span>
-        </div>
-        <div class="banner-conn" id="oppConn">
-          <span class="conn-pulse"></span><span id="oppConnText">Online</span>
-        </div>
-      </div>
-
-      <!-- Board -->
-      <div class="board-container">
-        <div class="board" id="chessboard"></div>
-      </div>
-
-      <!-- Status message -->
-      <div class="status-text" id="statusMsg">✨ Click menu to start playing!</div>
-
-      <!-- My info bar (online only) -->
-      <div id="myBanner" class="player-banner my-banner" style="display:none;">
-        <div class="banner-left">
-          <div class="banner-dot" id="myDot"></div>
-          <span id="myLabel">You</span>
-        </div>
-        <div class="banner-conn online">
-          <span class="conn-pulse"></span>You
-        </div>
-      </div>
-
     </div>
   </div>
 
-</div><!-- /app -->
+  <!-- ══════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════ -->
+  <div class="app" id="app" style="display:none;">
 
-<!-- ===== PROMOTION MODAL ===== -->
-<div id="promotionModal" class="modal">
-  <div class="modal-content">
-    <h2>✨ Promote Pawn</h2>
-    <div class="promotion-pieces">
-      <div class="promo-piece" data-piece="q">♕<span>QUEEN</span></div>
-      <div class="promo-piece" data-piece="r">♖<span>ROOK</span></div>
-      <div class="promo-piece" data-piece="b">♗<span>BISHOP</span></div>
-      <div class="promo-piece" data-piece="n">♘<span>KNIGHT</span></div>
+    <!-- ══ DESKTOP SIDEBAR ══ -->
+    <aside class="sidebar" id="sidebar">
+
+      <div class="sidebar-brand">
+        <div class="brand-icon">♜</div>
+        <div class="brand-text">
+          <span class="brand-name">Chess Master</span>
+          <span class="brand-sub" id="sidebarUsername">Player</span>
+        </div>
+      </div>
+
+      <div class="turn-card" id="turnCard">
+        <div class="turn-piece" id="sidebarTurnIcon">♔</div>
+        <div class="turn-info">
+          <div class="turn-label">CURRENT TURN</div>
+          <div class="turn-value" id="sidebarTurnText">White's Turn</div>
+        </div>
+        <div class="turn-badge" id="checkBadge" style="display:none;">CHECK</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="snav-btn active" data-tab="play" id="snavPlay">
+          <span class="snav-icon">♟</span>
+          <span class="snav-label">Play</span>
+        </button>
+        <button class="snav-btn" data-tab="online" id="snavOnline">
+          <span class="snav-icon">🌐</span>
+          <span class="snav-label">Online</span>
+        </button>
+        <button class="snav-btn" data-tab="history" id="snavHistory">
+          <span class="snav-icon">📜</span>
+          <span class="snav-label">History</span>
+        </button>
+        <button class="snav-btn" data-tab="profile" id="snavProfile">
+          <span class="snav-icon">👤</span>
+          <span class="snav-label">Profile</span>
+        </button>
+      </nav>
+
+      <div class="tab-panels">
+
+        <!-- PLAY TAB -->
+        <div class="tab-panel active" id="tabPlay">
+          <div class="panel-section">
+            <div class="panel-label">GAME MODE</div>
+            <div class="mode-grid">
+              <button class="mode-card active" id="offcanvasModeAI">
+                <span class="mode-icon">🤖</span>
+                <span class="mode-name">VS Computer</span>
+              </button>
+              <button class="mode-card" id="offcanvasModeFriend">
+                <span class="mode-icon">👥</span>
+                <span class="mode-name">2 Players</span>
+              </button>
+            </div>
+          </div>
+          <div class="panel-section" id="aiSection">
+            <div class="panel-label">AI DIFFICULTY</div>
+            <div class="diff-grid">
+              <button class="diff-btn" id="offcanvasEasy"><span class="diff-dot easy"></span>Easy</button>
+              <button class="diff-btn" id="offcanvasMedium"><span class="diff-dot medium"></span>Medium</button>
+              <button class="diff-btn active" id="offcanvasHard"><span class="diff-dot hard"></span>Hard</button>
+              <button class="diff-btn" id="offcanvasExpert"><span class="diff-dot expert"></span>Expert</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <button class="action-btn primary" id="offcanvasReset"><span>🔄</span> New Game</button>
+            <button class="action-btn danger" id="resignBtn" style="display:none;"><span>🏳️</span> Resign</button>
+            <button class="action-btn ghost" id="offerDrawBtn" style="display:none;"><span>🤝</span> Offer Draw</button>
+          </div>
+          <div class="panel-section">
+            <div class="panel-label">MOVE HISTORY</div>
+            <div id="moveHistoryList" class="move-history-list"></div>
+          </div>
+        </div>
+
+        <!-- ONLINE TAB -->
+        <div class="tab-panel" id="tabOnline">
+          <div class="conn-status offline" id="connectionBar">
+            <span class="conn-dot"></span>
+            <span id="connectionBarText">Not connected</span>
+          </div>
+          <div id="onlinePanel">
+            <div class="panel-section">
+              <button class="action-btn primary" id="createGameBtn"><span>🎮</span> Create Game</button>
+            </div>
+            <div id="gameCodeContainer" style="display:none;" class="panel-section">
+              <div class="code-label">YOUR GAME CODE</div>
+              <div class="code-box" id="roomCodeDisplay"></div>
+              <button class="action-btn ghost" id="copyCodeBtn"><span>📋</span> Copy Code</button>
+            </div>
+            <div class="panel-section">
+              <div class="join-row">
+                <input type="text" id="roomCodeInput" placeholder="Paste friend's code" class="input-field"
+                  maxlength="36" autocomplete="off" autocorrect="off" spellcheck="false" />
+                <button class="action-btn primary compact" id="joinGameBtn">Join</button>
+              </div>
+            </div>
+            <button class="action-btn danger" id="disconnectBtn" style="display:none;"><span>🚪</span> Leave
+              Game</button>
+          </div>
+          <div id="onlinePlayerPanel" style="display:none;" class="player-vs">
+            <div class="vs-player" id="playerWhiteRow">
+              <div class="vs-dot white-dot"></div>
+              <div>
+                <div class="vs-name" id="playerWhiteName">White</div>
+                <div class="vs-status" id="playerWhiteStatus">—</div>
+              </div>
+            </div>
+            <div class="vs-label">VS</div>
+            <div class="vs-player" id="playerBlackRow">
+              <div class="vs-dot black-dot"></div>
+              <div>
+                <div class="vs-name" id="playerBlackName">Black</div>
+                <div class="vs-status" id="playerBlackStatus">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORY TAB -->
+        <div class="tab-panel" id="tabHistory">
+          <div class="panel-label">GAME HISTORY</div>
+          <div id="gameHistoryList" class="game-history-list">
+            <div class="history-empty" id="historyEmpty"><span>📜</span>
+              <p>No games yet</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFILE TAB -->
+        <div class="tab-panel" id="tabProfile">
+          <div class="profile-card">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="profile-username" id="profileUsername">—</div>
+            <div class="profile-since" id="profileSince">Member since —</div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-num" id="statWins">0</div>
+              <div class="stat-label">Wins</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num" id="statLosses">0</div>
+              <div class="stat-label">Losses</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num" id="statDraws">0</div>
+              <div class="stat-label">Draws</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num" id="statGames">0</div>
+              <div class="stat-label">Total</div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-label">RECENT OPPONENTS</div>
+            <div id="recentOpponents" class="recent-opponents"></div>
+          </div>
+          <div class="panel-section" style="margin-top:16px;">
+            <div class="panel-label">SETTINGS</div>
+            <div class="panel-label" style="margin-top:10px;">BOARD THEME</div>
+            <div class="theme-grid">
+              <button class="theme-swatch active" data-theme="classic" title="Classic"><span
+                  class="sw-light"></span><span class="sw-dark"></span></button>
+              <button class="theme-swatch" data-theme="ocean" title="Ocean"><span class="sw-light ocean-l"></span><span
+                  class="sw-dark ocean-d"></span></button>
+              <button class="theme-swatch" data-theme="forest" title="Forest"><span
+                  class="sw-light forest-l"></span><span class="sw-dark forest-d"></span></button>
+              <button class="theme-swatch" data-theme="midnight" title="Midnight"><span
+                  class="sw-light midnight-l"></span><span class="sw-dark midnight-d"></span></button>
+            </div>
+            <div class="setting-row">
+              <span class="setting-label">Sound Effects</span>
+              <label class="toggle"><input type="checkbox" id="soundToggle" checked><span class="toggle-track"><span
+                    class="toggle-thumb"></span></span></label>
+            </div>
+            <div class="setting-row">
+              <span class="setting-label">Show coordinates</span>
+              <label class="toggle"><input type="checkbox" id="coordToggle" checked><span class="toggle-track"><span
+                    class="toggle-thumb"></span></span></label>
+            </div>
+          </div>
+          <div class="panel-section">
+            <button class="action-btn ghost" id="signOutBtn"><span>🚪</span> Sign Out</button>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ══ MAIN CONTENT ══ -->
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="topbar-brand">♜ Chess Master</div>
+        <div class="topbar-center">
+          <div class="topbar-status" id="statusMsg">✨ Start a new game!</div>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-user" id="topbarUser"></div>
+        </div>
+      </header>
+
+      <div class="game-area">
+        <div id="opponentBanner" class="player-banner" style="display:none;">
+          <div class="pb-left">
+            <div class="pb-dot" id="oppDot"></div><span id="oppLabel">Opponent</span>
+          </div>
+          <div class="pb-conn" id="oppConn"><span class="conn-pulse"></span><span id="oppConnText">Online</span></div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board" id="chessboard"></div>
+        </div>
+
+        <div class="mobile-status" id="mobileStatus">♟ White's Turn</div>
+
+        <div id="myBanner" class="player-banner my-banner" style="display:none;">
+          <div class="pb-left">
+            <div class="pb-dot" id="myDot"></div><span id="myLabel">You</span>
+          </div>
+          <div class="pb-conn online"><span class="conn-pulse"></span>You</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ══ MOBILE BOTTOM NAV ══ -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="bnav-item active" data-tab="play" id="bnavPlay">
+        <span class="bnav-icon">♟</span><span class="bnav-label">Play</span>
+      </button>
+      <button class="bnav-item" data-tab="online" id="bnavOnline">
+        <span class="bnav-icon">🌐</span><span class="bnav-label">Online</span>
+      </button>
+      <button class="bnav-item bnav-center" id="bnavNew">
+        <div class="bnav-center-ring"><span class="bnav-icon">♜</span></div>
+        <span class="bnav-label">New</span>
+      </button>
+      <button class="bnav-item" data-tab="history" id="bnavHistory">
+        <span class="bnav-icon">📜</span><span class="bnav-label">History</span>
+      </button>
+      <button class="bnav-item" data-tab="profile" id="bnavProfile">
+        <span class="bnav-icon">👤</span><span class="bnav-label">Profile</span>
+      </button>
+    </nav>
+
+    <!-- ══ MOBILE DRAWER ══ -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="drawer" id="drawer">
+      <div class="drawer-handle"></div>
+
+      <!-- PLAY drawer -->
+      <div class="drawer-panel active" id="drawerPlay">
+        <div class="drawer-title">Game Mode</div>
+        <div class="mode-grid">
+          <button class="mode-card active" id="dm_modeAI"><span class="mode-icon">🤖</span><span class="mode-name">VS
+              Computer</span></button>
+          <button class="mode-card" id="dm_modeFriend"><span class="mode-icon">👥</span><span class="mode-name">2
+              Players</span></button>
+        </div>
+        <div id="dm_aiSection">
+          <div class="drawer-subtitle">AI Difficulty</div>
+          <div class="diff-grid">
+            <button class="diff-btn" id="dm_easy"><span class="diff-dot easy"></span>Easy</button>
+            <button class="diff-btn" id="dm_medium"><span class="diff-dot medium"></span>Medium</button>
+            <button class="diff-btn active" id="dm_hard"><span class="diff-dot hard"></span>Hard</button>
+            <button class="diff-btn" id="dm_expert"><span class="diff-dot expert"></span>Expert</button>
+          </div>
+        </div>
+        <div class="drawer-actions">
+          <button class="action-btn danger" id="dm_resign" style="display:none;"><span>🏳️</span> Resign</button>
+          <button class="action-btn ghost" id="dm_draw" style="display:none;"><span>🤝</span> Offer Draw</button>
+        </div>
+        <div style="margin-top:16px;">
+          <div class="drawer-subtitle">MOVE HISTORY</div>
+          <div id="dm_moveHistoryList" class="move-history-list"></div>
+        </div>
+      </div>
+
+      <!-- ONLINE drawer -->
+      <div class="drawer-panel" id="drawerOnline">
+        <div class="drawer-title">Online Multiplayer</div>
+        <div class="conn-status offline" id="mobileConnBar"><span class="conn-dot"></span><span id="mobileConnText">Not
+            connected</span></div>
+        <button class="action-btn primary" id="dm_createGame"><span>🎮</span> Create Game</button>
+        <div id="dm_gameCodeContainer" style="display:none;">
+          <div class="code-label">YOUR GAME CODE</div>
+          <div class="code-box" id="dm_roomCodeDisplay"></div>
+          <button class="action-btn ghost" id="dm_copyCode"><span>📋</span> Copy Code</button>
+        </div>
+        <div class="join-row">
+          <input type="text" id="dm_roomCodeInput" placeholder="Paste friend's code" class="input-field" maxlength="36"
+            autocomplete="off" autocorrect="off" spellcheck="false" />
+          <button class="action-btn primary compact" id="dm_joinGame">Join</button>
+        </div>
+        <button class="action-btn danger" id="dm_disconnect" style="display:none;"><span>🚪</span> Leave Game</button>
+      </div>
+
+      <!-- HISTORY drawer -->
+      <div class="drawer-panel" id="drawerHistory">
+        <div class="drawer-title">Game History</div>
+        <div id="dm_gameHistoryList" class="game-history-list">
+          <div class="history-empty" id="dm_historyEmpty"><span>📜</span>
+            <p>No games yet</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE drawer -->
+      <div class="drawer-panel" id="drawerProfile">
+        <div class="drawer-title">My Profile</div>
+        <div class="profile-card">
+          <div class="profile-avatar" id="dm_profileAvatar">?</div>
+          <div class="profile-username" id="dm_profileUsername">—</div>
+          <div class="profile-since" id="dm_profileSince">Member since —</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-num" id="dm_statWins">0</div>
+            <div class="stat-label">Wins</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="dm_statLosses">0</div>
+            <div class="stat-label">Losses</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="dm_statDraws">0</div>
+            <div class="stat-label">Draws</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="dm_statGames">0</div>
+            <div class="stat-label">Total</div>
+          </div>
+        </div>
+        <div class="panel-section" style="margin-top:16px;">
+          <div class="panel-label">BOARD THEME</div>
+          <div class="theme-grid">
+            <button class="theme-swatch active" data-theme="classic" title="Classic"><span class="sw-light"></span><span
+                class="sw-dark"></span></button>
+            <button class="theme-swatch" data-theme="ocean" title="Ocean"><span class="sw-light ocean-l"></span><span
+                class="sw-dark ocean-d"></span></button>
+            <button class="theme-swatch" data-theme="forest" title="Forest"><span class="sw-light forest-l"></span><span
+                class="sw-dark forest-d"></span></button>
+            <button class="theme-swatch" data-theme="midnight" title="Midnight"><span
+                class="sw-light midnight-l"></span><span class="sw-dark midnight-d"></span></button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Sound Effects</span>
+            <label class="toggle"><input type="checkbox" id="dm_soundToggle" checked><span class="toggle-track"><span
+                  class="toggle-thumb"></span></span></label>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Show coordinates</span>
+            <label class="toggle"><input type="checkbox" id="dm_coordToggle" checked><span class="toggle-track"><span
+                  class="toggle-thumb"></span></span></label>
+          </div>
+        </div>
+        <button class="action-btn ghost" id="dm_signOut" style="margin-top:8px;"><span>🚪</span> Sign Out</button>
+      </div>
+
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- ════ GAME DETAIL MODAL ════ -->
+  <div id="gameDetailModal" class="modal">
+    <div class="modal-card" style="max-width:420px;">
+      <div class="modal-header" id="gdTitle">Game Details</div>
+      <div class="gd-meta" id="gdMeta"></div>
+      <div class="panel-label" style="margin:12px 0 6px;">MOVES</div>
+      <div id="gdMoveList" class="move-history-list" style="max-height:200px;"></div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="action-btn ghost" id="closeGdBtn">Close</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ===== DRAW OFFER MODAL ===== -->
-<div id="drawModal" class="modal">
-  <div class="modal-content">
-    <h2>🤝 Draw Offered</h2>
-    <p class="modal-sub">Your opponent is offering a draw.</p>
-    <div class="modal-btns">
-      <button class="btn btn-success" id="acceptDrawBtn">✅ ACCEPT</button>
-      <button class="btn btn-danger" id="declineDrawBtn">❌ DECLINE</button>
+  <!-- ════ PROMOTION MODAL ════ -->
+  <div id="promotionModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">✨ Promote Pawn</div>
+      <div class="promo-grid">
+        <button class="promo-piece" data-piece="q">♕<span>Queen</span></button>
+        <button class="promo-piece" data-piece="r">♖<span>Rook</span></button>
+        <button class="promo-piece" data-piece="b">♗<span>Bishop</span></button>
+        <button class="promo-piece" data-piece="n">♘<span>Knight</span></button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ===== GAME OVER MODAL ===== -->
-<div id="gameOverModal" class="modal">
-  <div class="modal-content">
-    <div class="game-over-icon" id="gameOverIcon">🏆</div>
-    <h2 id="gameOverTitle">Game Over</h2>
-    <p class="modal-sub" id="gameOverSub"></p>
-    <div class="modal-btns">
-      <button class="btn btn-primary" id="playAgainBtn">🔄 PLAY AGAIN</button>
-      <button class="btn" id="closeGameOverBtn">✖ CLOSE</button>
+  <!-- ════ DRAW MODAL ════ -->
+  <div id="drawModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">🤝 Draw Offered</div>
+      <p class="modal-sub">Your opponent is offering a draw.</p>
+      <div class="modal-actions">
+        <button class="action-btn primary" id="acceptDrawBtn">✅ Accept</button>
+        <button class="action-btn danger" id="declineDrawBtn">❌ Decline</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ===== TOAST ===== -->
-<div id="toast" class="toast"></div>
+  <!-- ════ GAME OVER MODAL ════ -->
+  <div id="gameOverModal" class="modal">
+    <div class="modal-card">
+      <div class="gameover-icon" id="gameOverIcon">🏆</div>
+      <div class="modal-header" id="gameOverTitle">Game Over</div>
+      <p class="modal-sub" id="gameOverSub"></p>
+      <div class="modal-actions">
+        <button class="action-btn primary" id="playAgainBtn">🔄 Play Again</button>
+        <button class="action-btn ghost" id="closeGameOverBtn">✖ Close</button>
+      </div>
+    </div>
+  </div>
 
-<script src="script.JS"></script>
+  <!-- ════ TOAST ════ -->
+  <div id="toast" class="toast"></div>
+
+  <script src="script.JS"></script>
 </body>
+
 </html>
