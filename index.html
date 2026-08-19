@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Chess Arena</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { ink:"#0a0a0a", paper:"#f5f5f5", card:"#ffffff", mute:"#8a8a8a", soft:"#efefef" },
+          fontFamily: { sans:["Segoe UI","system-ui","sans-serif"] }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-paper text-ink antialiased">
+
+<!-- ═══════════════════ WELCOME / REGISTER SCREEN ═══════════════════ -->
+<div id="welcomeScreen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl">
+    <div class="text-center mb-6">
+      <div class="text-5xl mb-3">♟</div>
+      <h1 class="text-2xl font-black text-ink">Chess Arena</h1>
+      <p class="text-sm text-mute mt-1">Create your unique player account</p>
+    </div>
+
+    <!-- New user form -->
+    <div id="welcomeForm">
+      <input id="usernameInput" maxlength="20" autocomplete="off" spellcheck="false"
+        class="w-full px-4 py-3 bg-soft rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-ink mb-2"
+        placeholder="Choose a username (3–20 chars)">
+      <p id="welcomeHint" class="text-xs text-mute mb-3 min-h-[16px]"></p>
+      <button id="welcomeBtn"
+        class="w-full py-3.5 bg-ink text-white text-sm font-black rounded-2xl hover:bg-ink/90 transition-colors active:scale-95">
+        ♟ Enter Chess Arena
+      </button>
+    </div>
+
+    <!-- Returning user -->
+    <div id="returningUser" class="hidden text-center">
+      <div id="returningAvatar" class="w-16 h-16 rounded-full bg-ink text-white text-2xl font-black flex items-center justify-center mx-auto mb-2"></div>
+      <p id="returningName" class="text-lg font-black text-ink"></p>
+      <p id="returningStats" class="text-xs text-mute mb-4"></p>
+      <button id="continueBtn" class="w-full py-3.5 bg-ink text-white text-sm font-black rounded-2xl mb-2 hover:bg-ink/90 active:scale-95 transition-all">▶ Continue</button>
+      <button id="switchUserBtn" class="w-full py-3 bg-soft text-ink text-sm font-semibold rounded-2xl hover:bg-soft/80 active:scale-95 transition-all">Switch User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP ═══════════════════ -->
+<div id="app" class="hidden mx-auto flex flex-col min-h-[100dvh] max-w-md bg-paper pb-24">
+
+  <!-- ══ HOME ══ -->
+  <section id="screen-home" class="screen active px-4 pt-5">
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div id="homeAvatar" class="w-12 h-12 rounded-full bg-ink text-white text-lg font-black flex items-center justify-center">♟</div>
+        <div>
+          <p id="homeName" class="text-base font-black text-ink">Player</p>
+          <p id="homeXp" class="text-xs text-mute">0 XP</p>
+        </div>
+      </div>
+      <button id="homeSettingsBtn" class="w-10 h-10 rounded-full bg-white border border-soft flex items-center justify-center text-mute shadow-sm hover:bg-soft transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button id="darkModeBtn" class="w-10 h-10 rounded-full bg-white border border-soft flex items-center justify-center text-base shadow-sm hover:bg-soft transition-colors" title="Toggle dark/light mode">🌙</button>
+    </header>
+
+    <!-- Stats card -->
+    <div class="rounded-[1.75rem] bg-gradient-to-br from-zinc-900 to-black p-5 text-white mb-4 shadow-lg">
+      <p class="text-[10px] font-bold tracking-[0.25em] text-white/50 uppercase mb-4">Current results</p>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div><p id="statWins"   class="text-3xl font-black">0</p><p class="text-xs text-white/50 mt-0.5">Wins</p></div>
+        <div><p id="statDraws"  class="text-3xl font-black">0</p><p class="text-xs text-white/50 mt-0.5">Draws</p></div>
+        <div><p id="statLosses" class="text-3xl font-black">0</p><p class="text-xs text-white/50 mt-0.5">Losses</p></div>
+      </div>
+    </div>
+
+    <!-- Training -->
+    <button data-nav="learn" class="w-full flex items-center justify-between bg-white rounded-[1.5rem] px-5 py-4 mb-4 shadow-sm border border-soft hover:bg-soft/50 transition-colors">
+      <div class="text-left">
+        <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase">Training</p>
+        <p class="text-base font-black text-ink mt-0.5">Practice for new learners</p>
+        <p id="practiceProgress" class="text-xs text-mute mt-0.5">0 puzzles solved</p>
+      </div>
+      <span class="text-3xl opacity-60">♞</span>
+    </button>
+
+    <!-- Last games -->
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-black text-ink">Last games</h2>
+      <button data-nav="matches" class="text-xs font-semibold text-mute hover:text-ink transition-colors">See all</button>
+    </div>
+    <div id="homeRecentList" class="space-y-2"></div>
+  </section>
+
+  <!-- ══ LEARN ══ -->
+  <section id="screen-learn" class="screen px-4 pt-5">
+    <p class="text-[10px] font-bold tracking-[0.25em] text-mute uppercase mb-1">Learn</p>
+    <h1 class="text-3xl font-black text-ink mb-1">Practice</h1>
+    <p class="text-sm text-mute mb-5 leading-relaxed">Short puzzles that teach piece moves, captures, and checkmate ideas.</p>
+    <div id="practiceList" class="space-y-2"></div>
+    <div id="practicePlay" class="hidden mt-4">
+      <div class="flex items-center justify-between mb-3">
+        <button id="practiceBackBtn" class="px-4 py-2 bg-soft rounded-full text-sm font-semibold hover:bg-ink hover:text-white transition-colors">← Back</button>
+        <p id="practiceTitle" class="text-sm font-black"></p>
+      </div>
+      <p id="practiceHint" class="bg-white rounded-2xl px-4 py-3 text-sm text-mute leading-relaxed mb-3 border border-soft"></p>
+      <div id="practiceBoard" class="board-grid mx-auto aspect-square w-full max-w-[400px]"></div>
+      <p id="practiceStatus" class="text-center text-sm font-bold mt-3"></p>
+    </div>
+  </section>
+
+  <!-- ══ PLAY SETUP ══ -->
+  <section id="screen-play" class="screen px-4 pt-5">
+    <p class="text-[10px] font-bold tracking-[0.25em] text-mute uppercase mb-1">Play</p>
+    <h1 class="text-3xl font-black text-ink mb-5">Start a game</h1>
+
+    <!-- Mode -->
+    <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">Mode</p>
+    <div class="flex gap-2 mb-5">
+      <button class="mode-chip active flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-ink bg-ink text-white transition-all" data-mode="ai">VS AI</button>
+      <button class="mode-chip flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-soft bg-white text-ink transition-all" data-mode="local">2 Players</button>
+      <button class="mode-chip flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-soft bg-white text-ink transition-all" data-mode="online">Online</button>
+    </div>
+
+    <!-- AI difficulty -->
+    <div id="aiSetup" class="mb-5">
+      <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">AI Difficulty</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="diff-chip active flex flex-col items-start px-4 py-3 rounded-2xl bg-ink text-white border-2 border-ink transition-all" data-diff="easy">
+          <span class="font-black text-sm">Easy</span><span class="text-xs opacity-60">Random / captures</span>
+        </button>
+        <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="normal">
+          <span class="font-black text-sm">Normal</span><span class="text-xs text-mute">Depth 2 search</span>
+        </button>
+        <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="hard">
+          <span class="font-black text-sm">Hard</span><span class="text-xs text-mute">Depth 3 search</span>
+        </button>
+        <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="expert">
+          <span class="font-black text-sm">Expert</span><span class="text-xs text-mute">Depth 4 search</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Online setup -->
+    <div id="onlineSetup" class="hidden mb-5 space-y-3">
+      <div class="bg-white rounded-2xl p-4 border border-soft">
+        <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">Your name</p>
+        <input id="playerName" maxlength="20" class="w-full bg-soft rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="Enter name">
+      </div>
+      <button id="createRoomBtn" class="w-full py-3.5 bg-ink text-white text-sm font-black rounded-full hover:bg-ink/90 active:scale-95 transition-all">Create room</button>
+      <div class="flex gap-2">
+        <input id="joinRoomInput" maxlength="6" class="flex-1 bg-white rounded-full px-4 py-3 text-sm border border-soft outline-none uppercase tracking-widest font-mono font-bold text-center" placeholder="ABC123" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button id="joinRoomBtn" class="px-5 py-3 bg-ink text-white text-sm font-black rounded-full hover:bg-ink/90 active:scale-95 transition-all">Join</button>
+      </div>
+      <p id="connectionStatus" class="text-center text-xs font-semibold text-mute">Offline</p>
+    </div>
+
+    <button id="startGameBtn" class="w-full py-4 bg-ink text-white text-base font-black rounded-full hover:bg-ink/90 active:scale-95 transition-all mb-2">Start vs AI (easy)</button>
+    <button id="resumeGameBtn" class="hidden w-full py-3.5 bg-soft text-ink text-sm font-bold rounded-full hover:bg-ink hover:text-white transition-all">Resume current board</button>
+  </section>
+
+  <!-- ══ GAME BOARD ══ -->
+  <section id="screen-game" class="screen px-3 pt-3 min-h-screen" style="background:linear-gradient(180deg,#1a3a2a 0%,#0d2015 100%)">
+    <!-- Top bar -->
+    <div class="flex items-center justify-between mb-3">
+      <button id="backFromGameBtn" class="px-4 py-2 bg-white/10 text-white rounded-full text-sm font-semibold hover:bg-white/20 transition-colors">← Back</button>
+      <p id="statusText" class="text-sm font-black text-white">White to move</p>
+      <button id="flipBoardBtn" class="px-4 py-2 bg-white/10 text-white rounded-full text-sm font-semibold hover:bg-white/20 transition-colors">Flip</button>
+    </div>
+
+    <!-- Opponent panel -->
+    <div class="flex items-center justify-between bg-black/30 backdrop-blur rounded-2xl px-4 py-3 mb-2 border border-white/10">
+      <div>
+        <p id="topPlayerName" class="text-sm font-black text-white">Black</p>
+        <p id="roomCodeText" class="text-xs text-white/50">Local game</p>
+      </div>
+      <span id="topPlayerBadge" class="px-3 py-1 bg-white/10 text-white/60 rounded-full text-xs font-bold">Waiting</span>
+    </div>
+
+    <!-- Board -->
+    <div id="board" class="board-grid mx-auto aspect-square w-full max-w-[440px] mb-2"></div>
+
+    <!-- AI thinking -->
+    <div id="aiThinkBar" class="hidden items-center justify-center gap-2 py-2">
+      <span class="text-xs font-bold text-mute">🤖 AI is thinking</span>
+      <span class="flex gap-1"><span class="w-1.5 h-1.5 bg-ink rounded-full animate-bounce [animation-delay:0ms]"></span><span class="w-1.5 h-1.5 bg-ink rounded-full animate-bounce [animation-delay:150ms]"></span><span class="w-1.5 h-1.5 bg-ink rounded-full animate-bounce [animation-delay:300ms]"></span></span>
+    </div>
+
+    <!-- Online banners -->
+    <div id="opponentBanner" class="hidden flex items-center justify-between bg-white rounded-2xl px-4 py-2.5 mb-1 border border-soft">
+      <div class="flex items-center gap-2"><div class="pb-dot" id="oppDot"></div><span id="oppLabel" class="text-xs font-bold">Opponent</span></div>
+      <div id="oppConn" class="pb-conn"><span class="conn-pulse"></span><span id="oppConnText" class="text-xs">Online</span></div>
+    </div>
+    <div id="myBanner" class="hidden flex items-center justify-between bg-white rounded-2xl px-4 py-2.5 mt-1 border border-soft">
+      <div class="flex items-center gap-2"><div class="pb-dot" id="myDot"></div><span id="myLabel" class="text-xs font-bold">You</span></div>
+      <div class="pb-conn online"><span class="conn-pulse"></span><span class="text-xs">You</span></div>
+    </div>
+
+    <!-- My panel -->
+    <div class="flex items-center justify-between bg-black/30 backdrop-blur rounded-2xl px-4 py-3 mt-2 border border-white/10">
+      <div>
+        <p id="bottomPlayerName" class="text-sm font-black text-white">White</p>
+        <p id="playerColorText" class="text-xs text-white/50">You play White</p>
+      </div>
+      <span id="bottomPlayerBadge" class="px-3 py-1 bg-white text-black rounded-full text-xs font-bold">Turn</span>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="grid grid-cols-4 gap-2 mt-3">
+      <button id="newGameBtn"  class="flex flex-col items-center gap-1 py-2 bg-black/30 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+        <span class="text-xl">↺</span><span class="text-[9px] font-bold text-white/60 uppercase tracking-wide">Restart</span>
+      </button>
+      <button id="piecesBtn"   class="flex flex-col items-center gap-1 py-2 bg-black/30 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+        <span class="text-xl">♟</span><span class="text-[9px] font-bold text-white/60 uppercase tracking-wide">Pieces</span>
+      </button>
+      <button id="undoBtn"     class="flex flex-col items-center gap-1 py-2 bg-black/30 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+        <span class="text-xl">↩</span><span class="text-[9px] font-bold text-white/60 uppercase tracking-wide">Undo</span>
+      </button>
+      <button id="resignBtn"   class="flex flex-col items-center gap-1 py-2 bg-black/30 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+        <span class="text-xl">🏳️</span><span class="text-[9px] font-bold text-white/60 uppercase tracking-wide">Resign</span>
+      </button>
+    </div>
+
+    <!-- Online player panel -->
+    <div id="onlinePlayerPanel" class="hidden mt-3 bg-white rounded-2xl p-3 border border-soft">
+      <div class="flex items-center gap-2 p-2 rounded-xl" id="playerWhiteRow">
+        <div class="w-2.5 h-2.5 rounded-full bg-white border border-ink/20 flex-shrink-0"></div>
+        <div><p id="playerWhiteName" class="text-xs font-bold">White</p><p id="playerWhiteStatus" class="text-[10px] text-mute">—</p></div>
+      </div>
+      <p class="text-center text-[10px] font-bold text-mute tracking-widest py-1">VS</p>
+      <div class="flex items-center gap-2 p-2 rounded-xl" id="playerBlackRow">
+        <div class="w-2.5 h-2.5 rounded-full bg-ink flex-shrink-0"></div>
+        <div><p id="playerBlackName" class="text-xs font-bold">Black</p><p id="playerBlackStatus" class="text-[10px] text-mute">—</p></div>
+      </div>
+    </div>
+
+    <!-- Move history -->
+    <div id="moveHistorySection" class="mt-3 bg-white rounded-2xl p-3 border border-soft">
+      <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">Moves</p>
+      <div id="moveHistoryList" class="move-history max-h-32 overflow-y-auto"></div>
+    </div>
+
+    <!-- Online controls -->
+    <div class="mt-2 flex gap-2">
+      <button id="offerDrawBtn"  class="hidden flex-1 py-2.5 bg-soft text-ink text-xs font-bold rounded-full hover:bg-ink hover:text-white transition-colors">🤝 Draw</button>
+      <button id="disconnectBtn" class="hidden flex-1 py-2.5 bg-soft text-red-600 text-xs font-bold rounded-full hover:bg-red-500 hover:text-white transition-colors">🚪 Leave</button>
+    </div>
+
+    <!-- Room code display -->
+    <div id="gameCodeContainer" class="hidden mt-2 bg-white rounded-2xl p-3 border border-soft text-center">
+      <p class="text-[10px] text-mute uppercase font-bold tracking-widest mb-1">Room Code</p>
+      <p id="roomCodeDisplay" class="text-xl font-black font-mono text-ink"></p>
+      <button id="copyCodeBtn" class="mt-2 px-4 py-1.5 bg-soft text-xs font-bold rounded-full hover:bg-ink hover:text-white transition-colors">📋 Copy</button>
+    </div>
+    <input id="roomCodeInput" class="hidden">
+  </section>
+
+  <!-- ══ MATCHES / FRIENDS ══ -->
+  <section id="screen-matches" class="screen px-4 pt-5">
+    <!-- Tab switcher -->
+    <div class="flex gap-1 bg-soft rounded-2xl p-1 mb-5">
+      <button id="tab-friends-btn" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all bg-ink text-white shadow-sm" onclick="switchMatchTab('friends')">👥 Friends</button>
+      <button id="tab-history-btn" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all text-mute" onclick="switchMatchTab('history')">📜 History</button>
+    </div>
+
+    <!-- FRIENDS panel -->
+    <div id="panel-friends">
+      <div id="friendsList" class="space-y-2"></div>
+      <div id="friendsEmpty" class="hidden bg-white rounded-2xl p-6 text-center border border-soft">
+        <p class="text-3xl mb-2">♟</p>
+        <p class="text-sm font-bold text-ink">No friends yet</p>
+        <p class="text-xs text-mute mt-1">Play online games — opponents are saved here automatically</p>
+      </div>
+    </div>
+
+    <!-- HISTORY panel -->
+    <div id="panel-history" class="hidden">
+      <div id="matchesList" class="space-y-2"></div>
+    </div>
+  </section>
+
+  <!-- ══ MORE / PROFILE ══ -->
+  <section id="screen-more" class="screen px-4 pt-5">
+    <p class="text-[10px] font-bold tracking-[0.25em] text-mute uppercase mb-1">More</p>
+    <h1 class="text-3xl font-black text-ink mb-5">Profile</h1>
+
+    <!-- Name card -->
+    <div class="bg-white rounded-[1.5rem] p-5 border border-soft mb-3 shadow-sm">
+      <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">Display name</p>
+      <input id="profileName" maxlength="20" class="w-full bg-soft rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ink" placeholder="Your name">
+      <button id="saveProfileBtn" class="mt-3 w-full py-3 bg-ink text-white text-sm font-black rounded-full hover:bg-ink/90 active:scale-95 transition-all">Save</button>
+      <button id="signOutBtn" class="mt-2 w-full py-3 bg-soft text-red-500 text-sm font-bold rounded-full hover:bg-red-50 transition-colors">Sign out</button>
+    </div>
+
+    <!-- Toggles -->
+    <div class="bg-white rounded-[1.5rem] p-5 border border-soft mb-3 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold text-ink">Sound</span>
+        <label class="toggle"><input id="soundToggle" type="checkbox" checked><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold text-ink">Show coordinates</span>
+        <label class="toggle"><input id="coordToggle" type="checkbox" checked><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+    </div>
+
+    <!-- Board themes -->
+    <div class="bg-white rounded-[1.5rem] p-5 border border-soft mb-3 shadow-sm">
+      <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-3">Board Theme</p>
+      <div class="flex flex-wrap gap-3">
+        <button class="theme-swatch active flex flex-col items-center gap-1.5" data-theme="classic" title="Classic">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-ink shadow-sm"><span style="background:#f0d9b5"></span><span style="background:#b58863"></span><span style="background:#b58863"></span><span style="background:#f0d9b5"></span></div>
+          <span class="text-[9px] font-bold text-ink">Classic</span>
+        </button>
+        <button class="theme-swatch flex flex-col items-center gap-1.5" data-theme="ocean" title="Ocean">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-transparent shadow-sm hover:border-ink transition-colors"><span style="background:#d6e4f0"></span><span style="background:#2980b9"></span><span style="background:#2980b9"></span><span style="background:#d6e4f0"></span></div>
+          <span class="text-[9px] font-semibold text-mute">Ocean</span>
+        </button>
+        <button class="theme-swatch flex flex-col items-center gap-1.5" data-theme="forest" title="Forest">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-transparent shadow-sm hover:border-ink transition-colors"><span style="background:#eeeed2"></span><span style="background:#769656"></span><span style="background:#769656"></span><span style="background:#eeeed2"></span></div>
+          <span class="text-[9px] font-semibold text-mute">Forest</span>
+        </button>
+        <button class="theme-swatch flex flex-col items-center gap-1.5" data-theme="midnight" title="Midnight">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-transparent shadow-sm hover:border-ink transition-colors"><span style="background:#4a4a6a"></span><span style="background:#1a1a2e"></span><span style="background:#1a1a2e"></span><span style="background:#4a4a6a"></span></div>
+          <span class="text-[9px] font-semibold text-mute">Midnight</span>
+        </button>
+        <button class="theme-swatch flex flex-col items-center gap-1.5" data-theme="gold" title="Gold &amp; Black">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-transparent shadow-sm hover:border-ink transition-colors"><span style="background:#ffd700"></span><span style="background:#1a1a1a"></span><span style="background:#1a1a1a"></span><span style="background:#ffd700"></span></div>
+          <span class="text-[9px] font-semibold text-mute">Gold</span>
+        </button>
+        <button class="theme-swatch flex flex-col items-center gap-1.5" data-theme="rose" title="Rose">
+          <div class="w-12 h-12 rounded-xl overflow-hidden grid grid-cols-2 grid-rows-2 border-2 border-transparent shadow-sm hover:border-ink transition-colors"><span style="background:#f9e4e4"></span><span style="background:#c97b7b"></span><span style="background:#c97b7b"></span><span style="background:#f9e4e4"></span></div>
+          <span class="text-[9px] font-semibold text-mute">Rose</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Danger -->
+    <div class="bg-white rounded-[1.5rem] p-5 border border-soft shadow-sm space-y-2">
+      <button id="leaveRoomBtn" class="w-full py-3 bg-soft text-ink text-sm font-bold rounded-full hover:bg-ink hover:text-white transition-colors active:scale-95">Leave online room</button>
+      <button id="clearHistoryBtn" class="w-full py-3 bg-soft text-red-500 text-sm font-bold rounded-full hover:bg-red-50 transition-colors active:scale-95">Clear history</button>
+    </div>
+  </section>
+
+</div><!-- /app -->
+
+<!-- ═══════════════════ BOTTOM NAV ═══════════════════ -->
+<nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around max-w-md mx-auto h-[68px] bg-ink rounded-t-3xl shadow-2xl px-2" style="padding-bottom:env(safe-area-inset-bottom)">
+  <button class="nav-item active flex flex-col items-center gap-0.5 flex-1 py-2 border-none bg-transparent cursor-pointer" data-nav="home">
+    <span class="text-xl leading-none">♜</span><span class="text-[9px] font-semibold">Home</span>
+  </button>
+  <button class="nav-item flex flex-col items-center gap-0.5 flex-1 py-2 border-none bg-transparent cursor-pointer" data-nav="learn">
+    <span class="text-xl leading-none">🎓</span><span class="text-[9px] font-semibold">Learn</span>
+  </button>
+  <button class="nav-item flex flex-col items-center gap-0.5 flex-1 py-2 border-none bg-transparent cursor-pointer" data-nav="play">
+    <span class="text-xl leading-none">▦</span><span class="text-[9px] font-semibold">Play</span>
+  </button>
+  <button class="nav-item flex flex-col items-center gap-0.5 flex-1 py-2 border-none bg-transparent cursor-pointer" data-nav="matches">
+    <span class="text-xl leading-none">♞</span><span class="text-[9px] font-semibold">Matches</span>
+  </button>
+  <button class="nav-item flex flex-col items-center gap-0.5 flex-1 py-2 border-none bg-transparent cursor-pointer" data-nav="more">
+    <span class="text-xl leading-none">☰</span><span class="text-[9px] font-semibold">More</span>
+  </button>
+</nav>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+<!-- Promotion -->
+<div id="promotionModal" class="modal">
+  <div class="modal-card">
+    <h2 class="modal-hdr">✨ Promote Pawn</h2>
+    <div class="promo-grid">
+      <button class="promo-piece" data-piece="q"><img src="pieces/wQ.svg" class="promo-img" alt="Queen"><span>Queen</span></button>
+      <button class="promo-piece" data-piece="r"><img src="pieces/wR.svg" class="promo-img" alt="Rook"><span>Rook</span></button>
+      <button class="promo-piece" data-piece="b"><img src="pieces/wB.svg" class="promo-img" alt="Bishop"><span>Bishop</span></button>
+      <button class="promo-piece" data-piece="n"><img src="pieces/wN.svg" class="promo-img" alt="Knight"><span>Knight</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Draw offer -->
+<div id="drawModal" class="modal">
+  <div class="modal-card">
+    <h2 class="modal-hdr">🤝 Draw Offered</h2>
+    <p class="modal-sub">Your opponent is offering a draw.</p>
+    <div class="modal-btns">
+      <button id="acceptDrawBtn"  class="modal-btn primary">✅ Accept</button>
+      <button id="declineDrawBtn" class="modal-btn danger">❌ Decline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Game over -->
+<div id="gameOverModal" class="modal">
+  <div class="modal-card">
+    <div id="gameOverIcon"  class="text-5xl mb-2">🏆</div>
+    <h2 id="gameOverTitle" class="modal-hdr">Game Over</h2>
+    <p  id="gameOverSub"   class="modal-sub"></p>
+    <div class="modal-btns">
+      <button id="playAgainBtn"    class="modal-btn primary">🔄 Play Again</button>
+      <button id="closeGameOverBtn" class="modal-btn ghost">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Challenge incoming toast -->
+<div id="challengeToast" class="hidden fixed top-16 left-4 right-4 z-50 max-w-sm mx-auto">
+  <div class="bg-ink text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl border border-white/10">
+    <div class="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-xl flex-shrink-0" id="challengerAvatar">♟</div>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-bold truncate"><span id="challengerName">Player</span> wants to play!</p>
+      <p class="text-[10px] text-white/50">Chess challenge ⚔️</p>
+    </div>
+    <div class="flex gap-2 flex-shrink-0">
+      <button id="acceptChallengeBtn" class="px-3 py-1.5 bg-green-500 text-white text-xs font-black rounded-xl hover:bg-green-400 transition-colors active:scale-95">Accept</button>
+      <button id="declineChallengeBtn" class="px-3 py-1.5 bg-white/15 text-white text-xs font-bold rounded-xl hover:bg-white/25 transition-colors active:scale-95">Decline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden aliases -->
+<button id="menuBtn" style="display:none" aria-hidden="true"></button>
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="script.JS"></script>
+</body>
+</html>
