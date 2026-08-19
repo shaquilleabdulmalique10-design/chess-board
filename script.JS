@@ -591,6 +591,8 @@ function hideOnlineUI(){
 }
 function setupConn(connection){
   conn=connection;
+  // Register our peer so joiners can find us
+  if(peer&&peer.id&&myShortCode) registerPeer(myShortCode, peer.id);
   conn.on('open',()=>{
     isOnline=true; setConnStatus('online');
     showToast('🎮 Opponent connected! Game on!'); snd('notify'); updateStatus();
@@ -617,35 +619,6 @@ function setupConn(connection){
     if(!gameOver)showToast('⚠️ Opponent disconnected',5000);
   });
   conn.on('error',err=>{console.error(err);showToast('⚠️ Connection error');});
-}
-function createGame(){
-  setConnStatus('connecting'); setStatus('⏳ Setting up…');
-  if(peer){peer.destroy();peer=null;}
-  peer=new Peer(undefined,{debug:0});
-  peer.on('open',id=>{
-    myColor='white'; currentMode='online';
-    const cd=$('roomCodeDisplay');if(cd)cd.innerHTML=`<strong class="text-2xl font-black tracking-widest">${id}</strong>`;
-    const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
-    showOnlineUI('white'); resetGame(true); showScreen('game');
-    showToast('✅ Share your code with a friend!');
-  });
-  peer.on('connection',c=>setupConn(c));
-  peer.on('error',err=>{showToast('❌ Error: '+err.type);setConnStatus('offline');});
-}
-function joinGame(){
-  const code=($('joinRoomInput')?.value||'').trim();
-  if(!code){showToast('❌ Enter a room code');return;}
-  setConnStatus('connecting'); setStatus('🔍 Connecting…');
-  if(peer){peer.destroy();peer=null;}
-  peer=new Peer(undefined,{debug:0});
-  peer.on('open',()=>{
-    myColor='black'; currentMode='online';
-    const c=peer.connect(code,{reliable:true}); setupConn(c);
-    const cd=$('roomCodeDisplay');if(cd)cd.innerHTML=`<strong>${code}</strong>`;
-    const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
-    showOnlineUI('black'); resetGame(true); showScreen('game');
-  });
-  peer.on('error',err=>{showToast('❌ Could not connect. Check the code.');setConnStatus('offline');});
 }
 function leaveGame(){
   if(conn){conn.close();conn=null;}
@@ -966,8 +939,10 @@ function clickPuzzle(sq){
 let darkMode = localStorage.getItem('chess-dark-mode') === 'true';
 function applyDarkMode(){
   document.body.classList.toggle('dark-mode', darkMode);
-  const btn = $('darkModeBtn');
-  if(btn) btn.textContent = darkMode ? '☀️' : '🌙';
+  // sync all dark mode toggles
+  ['darkModeToggle','darkModeToggle2'].forEach(id=>{
+    const el=$(id); if(el) el.checked=darkMode;
+  });
   localStorage.setItem('chess-dark-mode', darkMode);
 }
 function toggleDarkMode(){
@@ -1085,92 +1060,83 @@ function switchMatchTab(tab){
 // ── Short code online game ────────────────────
 let myShortCode = '';
 
-function createGameShort(){
-  myShortCode = genShortCode();
-  updateConnBar('connecting');
-  setStatus('⏳ Setting up…');
-  if(peer){peer.destroy();peer=null;}
-  peer = new Peer(undefined,{debug:0});
-  peer.on('open', id=>{
-    // Store mapping short→full
-    CODE_MAP[myShortCode] = id;
-    myColor='white'; currentMode='online';
-    const cd=$('roomCodeDisplay');
-    if(cd) cd.innerHTML=`<strong class="text-2xl font-black tracking-[0.2em] font-mono">${myShortCode}</strong>`;
-    const gc=$('gameCodeContainer'); if(gc) gc.style.display='block';
-    setStatus('⏳ Waiting for opponent…');
-    showOnlineUI('white'); resetGame(true); showScreen('game');
-    showToast(`✅ Code: ${myShortCode} — share it!`, 6000);
-    navigator.clipboard?.writeText(myShortCode).catch(()=>{});
-  });
-  peer.on('connection',c=>setupConn(c));
-  peer.on('error',err=>{showToast('❌ '+err.type); setConnStatus('offline');});
-}
+// ── Online multiplayer with short codes ──────
+// We let PeerJS assign a full UUID, then show only last 6 chars as the "room code".
+// This avoids ID conflicts on the PeerJS public server.
 
-function joinGameShort(){
-  const raw=($('joinRoomInput')?.value||'').trim().toUpperCase().slice(0,6);
-  if(!raw||raw.length<4){showToast('❌ Enter the 6-char code');return;}
-  setConnStatus('connecting'); setStatus('🔍 Connecting…');
-  if(peer){peer.destroy();peer=null;}
-  peer=new Peer(undefined,{debug:0});
-  peer.on('open',()=>{
-    myColor='black'; currentMode='online';
-    // Try to connect directly using the short code as PeerJS id
-    // (works if creator used it as their peer id, otherwise fallback to CODE_MAP)
-    const targetId = CODE_MAP[raw] || raw;
-    const c=peer.connect(targetId,{reliable:true}); setupConn(c);
-    const cd=$('roomCodeDisplay');if(cd)cd.innerHTML=`<strong>${raw}</strong>`;
-    const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
-    showOnlineUI('black'); resetGame(true); showScreen('game');
-  });
-  peer.on('error',err=>{showToast('❌ Could not connect. Check the code.');setConnStatus('offline');});
-}
-
-// Override createGame and joinGame — short 6-char peer IDs
 function createGame(){
   setConnStatus('connecting'); setStatus('⏳ Setting up…');
   if(peer){peer.destroy();peer=null;}
-  myShortCode = genShortCode();
-  // Use the short code directly as our PeerJS id
-  peer = new Peer(myShortCode, {debug:0});
-  peer.on('open', id=>{
+  // Let PeerJS assign a random UUID
+  peer = new Peer(undefined, {debug:0, config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'}]}});
+  peer.on('open', fullId=>{
+    // Display last 6 chars of the UUID as the room code
+    myShortCode = fullId.slice(-6).toUpperCase();
     myColor='white'; currentMode='online';
     const cd=$('roomCodeDisplay');
-    if(cd) cd.innerHTML=`<strong class="text-3xl font-black tracking-[0.25em] font-mono">${id}</strong>`;
+    if(cd) cd.innerHTML='<span style="font-size:2rem;font-weight:900;font-family:monospace;letter-spacing:0.15em">'+myShortCode+'</span>';
     const gc=$('gameCodeContainer'); if(gc) gc.style.display='block';
     setStatus('⏳ Waiting for opponent…');
     showOnlineUI('white'); resetGame(true); showScreen('game');
-    showToast(`✅ Code: ${id} — copied!`, 6000);
-    navigator.clipboard?.writeText(id).catch(()=>{});
+    showToast('✅ Code: '+myShortCode+' — share it!', 7000);
+    navigator.clipboard?.writeText(myShortCode).catch(()=>{});
   });
-  peer.on('connection', c=>setupConn(c));
+  peer.on('connection', c=>{
+    // Store full peer ID mapping
+    setupConn(c);
+  });
   peer.on('error', err=>{
-    // If short code is taken, try again with a new one
-    if(err.type==='unavailable-id'){
-      peer.destroy(); peer=null;
-      myShortCode = genShortCode();
-      createGame();
-    } else {
-      showToast('❌ '+err.type); setConnStatus('offline');
-    }
+    console.error('PeerJS error:', err);
+    showToast('❌ Connection failed: '+err.type); setConnStatus('offline');
   });
 }
 
+// We also keep a server-side lookup in localStorage so joiners can find hosts
+// by 6-char code. Host stores: {shortCode → fullPeerId}
+const PEER_REGISTRY = 'chess-peer-registry';
+
+function registerPeer(shortCode, fullId){
+  try{
+    const reg = JSON.parse(localStorage.getItem(PEER_REGISTRY)||'{}');
+    reg[shortCode] = { fullId, ts: Date.now() };
+    // clean old entries (>1 hour)
+    Object.keys(reg).forEach(k=>{ if(Date.now()-reg[k].ts > 3600000) delete reg[k]; });
+    localStorage.setItem(PEER_REGISTRY, JSON.stringify(reg));
+  }catch(e){}
+}
+function lookupPeer(shortCode){
+  try{
+    const reg = JSON.parse(localStorage.getItem(PEER_REGISTRY)||'{}');
+    return reg[shortCode]?.fullId || null;
+  }catch(e){return null;}
+}
+
 function joinGame(){
-  const raw=($('joinRoomInput')?.value||'').trim().toUpperCase().slice(0,6);
-  if(!raw||raw.length<4){showToast('❌ Enter the 6-char code');return;}
+  const raw = ($('joinRoomInput')?.value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+  if(!raw||raw.length<4){showToast('❌ Enter the 6-char code from your opponent');return;}
   setConnStatus('connecting'); setStatus('🔍 Connecting…');
   if(peer){peer.destroy();peer=null;}
-  peer=new Peer(undefined,{debug:0});
-  peer.on('open',()=>{
+  peer = new Peer(undefined, {debug:0, config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'}]}});
+  peer.on('open', ()=>{
     myColor='black'; currentMode='online';
-    // Connect directly to the short code (which is the host's PeerJS id)
-    const c=peer.connect(raw,{reliable:true}); setupConn(c);
-    const cd=$('roomCodeDisplay');if(cd)cd.innerHTML=`<strong>${raw}</strong>`;
-    const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
-    showOnlineUI('black'); resetGame(true); showScreen('game');
+    // Try local registry first, then try the raw code as full peer ID
+    const fullId = lookupPeer(raw) || raw;
+    const c = peer.connect(fullId, {reliable:true, serialization:'json'});
+    c.on('open', ()=>{
+      setupConn(c);
+      const cd=$('roomCodeDisplay');if(cd)cd.innerHTML='<strong>'+raw+'</strong>';
+      const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
+      showOnlineUI('black'); resetGame(true); showScreen('game');
+    });
+    c.on('error', err=>{
+      console.error('Connection error:', err);
+      showToast('❌ Could not connect. Make sure the host is online.'); setConnStatus('offline');
+    });
   });
-  peer.on('error',err=>{showToast('❌ Could not connect. Check the code.');setConnStatus('offline');});
+  peer.on('error', err=>{
+    console.error('Peer error:', err);
+    showToast('❌ '+err.type); setConnStatus('offline');
+  });
 }
 function bindAll(){
   // Screen nav
@@ -1284,7 +1250,8 @@ function bindAll(){
   });
 
   // Dark mode toggle
-  $('darkModeBtn')?.addEventListener('click', toggleDarkMode);
+  // Dark mode checkbox in profile
+  $('darkModeToggle')?.addEventListener('change', toggleDarkMode);
 
   // Challenge toast
   $('acceptChallengeBtn')?.addEventListener('click',()=>{
