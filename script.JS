@@ -667,10 +667,11 @@ function resign(){
   showModal('🏳️','You Resigned',`${winner.charAt(0).toUpperCase()+winner.slice(1)} wins.`);
 }
 function copyCode(){
-  if(!peer)return;
-  navigator.clipboard?.writeText(peer.id)
-    .then(()=>showToast('✅ Code copied!'))
-    .catch(()=>showToast('Code: '+peer.id));
+  const code=peer?.id||myShortCode||'';
+  if(!code){showToast('No room code yet');return;}
+  navigator.clipboard?.writeText(code)
+    .then(()=>showToast('✅ Copied: '+code,4000))
+    .catch(()=>showToast('Code: '+code,4000));
 }
 
 // ── User system ───────────────────────────────
@@ -1125,9 +1126,52 @@ function joinGameShort(){
   peer.on('error',err=>{showToast('❌ Could not connect. Check the code.');setConnStatus('offline');});
 }
 
-// Override createGame and joinGame
-function createGame(){ createGameShort(); }
-function joinGame()  { joinGameShort();   }
+// Override createGame and joinGame — short 6-char peer IDs
+function createGame(){
+  setConnStatus('connecting'); setStatus('⏳ Setting up…');
+  if(peer){peer.destroy();peer=null;}
+  myShortCode = genShortCode();
+  // Use the short code directly as our PeerJS id
+  peer = new Peer(myShortCode, {debug:0});
+  peer.on('open', id=>{
+    myColor='white'; currentMode='online';
+    const cd=$('roomCodeDisplay');
+    if(cd) cd.innerHTML=`<strong class="text-3xl font-black tracking-[0.25em] font-mono">${id}</strong>`;
+    const gc=$('gameCodeContainer'); if(gc) gc.style.display='block';
+    setStatus('⏳ Waiting for opponent…');
+    showOnlineUI('white'); resetGame(true); showScreen('game');
+    showToast(`✅ Code: ${id} — copied!`, 6000);
+    navigator.clipboard?.writeText(id).catch(()=>{});
+  });
+  peer.on('connection', c=>setupConn(c));
+  peer.on('error', err=>{
+    // If short code is taken, try again with a new one
+    if(err.type==='unavailable-id'){
+      peer.destroy(); peer=null;
+      myShortCode = genShortCode();
+      createGame();
+    } else {
+      showToast('❌ '+err.type); setConnStatus('offline');
+    }
+  });
+}
+
+function joinGame(){
+  const raw=($('joinRoomInput')?.value||'').trim().toUpperCase().slice(0,6);
+  if(!raw||raw.length<4){showToast('❌ Enter the 6-char code');return;}
+  setConnStatus('connecting'); setStatus('🔍 Connecting…');
+  if(peer){peer.destroy();peer=null;}
+  peer=new Peer(undefined,{debug:0});
+  peer.on('open',()=>{
+    myColor='black'; currentMode='online';
+    // Connect directly to the short code (which is the host's PeerJS id)
+    const c=peer.connect(raw,{reliable:true}); setupConn(c);
+    const cd=$('roomCodeDisplay');if(cd)cd.innerHTML=`<strong>${raw}</strong>`;
+    const gc=$('gameCodeContainer');if(gc)gc.style.display='block';
+    showOnlineUI('black'); resetGame(true); showScreen('game');
+  });
+  peer.on('error',err=>{showToast('❌ Could not connect. Check the code.');setConnStatus('offline');});
+}
 function bindAll(){
   // Screen nav
   $$('[data-nav]').forEach(btn=>btn.addEventListener('click',()=>showScreen(btn.dataset.nav)));
