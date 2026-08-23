@@ -23,7 +23,7 @@ Open [http://localhost:3000](http://localhost:3000)
 
 | Level  | Behavior              |
 |--------|-----------------------|
-| Easy   | Random / prefer captures |
-| Normal | Minimax depth 2       |
-| Hard   | Minimax depth 3       |
-| Expert | Minimax depth 4       |
+| Easy   | Fast random legal move; occasionally prefers a capture |
+| Normal | Up to 0.5 seconds of tactical search, with slight move variety |
+| Hard   | Up to 1.4 seconds of iterative deepening (maximum depth 4) |
+| Expert | Up to 3.2 seconds of iterative deepening (maximum depth 6) |

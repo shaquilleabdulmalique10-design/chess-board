@@ -223,6 +223,12 @@ wss.on("connection", (socket) => {
       room.chess = new Chess();
       broadcast(room, { type: "reset-applied" });
     }
+
+    // draw / resign passthrough
+    if (data.type === "draw_offer" || data.type === "draw_accept" ||
+        data.type === "draw_decline" || data.type === "resign") {
+      broadcast(room, { type: data.type }, socket);
+    }
   });
 
   socket.on("close", () => {

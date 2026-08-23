@@ -17,7 +17,7 @@
   </script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-paper text-ink antialiased">
+<body class="text-ink antialiased">
 
 <!-- ═══════════════════ WELCOME / REGISTER SCREEN ═══════════════════ -->
 <div id="welcomeScreen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -65,9 +65,15 @@
           <p id="homeXp" class="text-xs text-mute">0 XP</p>
         </div>
       </div>
-      <button id="homeSettingsBtn" class="w-10 h-10 rounded-full bg-white border border-soft flex items-center justify-center text-mute shadow-sm hover:bg-soft transition-colors">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      </button>
+      <div class="flex items-center gap-2">
+        <!-- Dark mode toggle -->
+        <button id="darkModeBtn" onclick="toggleDarkMode()" class="w-10 h-10 rounded-full bg-white border border-soft flex items-center justify-center text-mute shadow-sm hover:bg-soft transition-colors" title="Toggle dark mode">
+          <span id="darkModeIcon">🌙</span>
+        </button>
+        <button id="homeSettingsBtn" class="w-10 h-10 rounded-full bg-white border border-soft flex items-center justify-center text-mute shadow-sm hover:bg-soft transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
     </header>
 
     <!-- Stats card -->
@@ -123,7 +129,7 @@
     <!-- Mode -->
     <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">Mode</p>
     <div class="flex gap-2 mb-5">
-      <button class="mode-chip active flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-ink bg-ink text-white transition-all" data-mode="ai">VS AI</button>
+      <button class="mode-chip active flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-ink bg-ink text-white transition-all" data-mode="computer">VS AI</button>
       <button class="mode-chip flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-soft bg-white text-ink transition-all" data-mode="local">2 Players</button>
       <button class="mode-chip flex-1 py-2.5 rounded-full text-sm font-bold border-2 border-soft bg-white text-ink transition-all" data-mode="online">Online</button>
     </div>
@@ -133,16 +139,16 @@
       <p class="text-[10px] font-bold tracking-[0.2em] text-mute uppercase mb-2">AI Difficulty</p>
       <div class="grid grid-cols-2 gap-2">
         <button class="diff-chip active flex flex-col items-start px-4 py-3 rounded-2xl bg-ink text-white border-2 border-ink transition-all" data-diff="easy">
-          <span class="font-black text-sm">Easy</span><span class="text-xs opacity-60">Random / captures</span>
+          <span class="font-black text-sm">Easy</span><span class="text-xs opacity-60">Quick & unpredictable</span>
         </button>
         <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="normal">
-          <span class="font-black text-sm">Normal</span><span class="text-xs text-mute">Depth 2 search</span>
+          <span class="font-black text-sm">Normal</span><span class="text-xs text-mute">0.5s tactical search</span>
         </button>
         <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="hard">
-          <span class="font-black text-sm">Hard</span><span class="text-xs text-mute">Depth 3 search</span>
+          <span class="font-black text-sm">Hard</span><span class="text-xs text-mute">1.4s deep search</span>
         </button>
         <button class="diff-chip flex flex-col items-start px-4 py-3 rounded-2xl bg-white text-ink border-2 border-soft transition-all" data-diff="expert">
-          <span class="font-black text-sm">Expert</span><span class="text-xs text-mute">Depth 4 search</span>
+          <span class="font-black text-sm">Expert</span><span class="text-xs text-mute">3.2s iterative search</span>
         </button>
       </div>
     </div>
@@ -341,6 +347,8 @@
       </div>
     </div>
 
+    
+
     <!-- Danger -->
     <div class="bg-white rounded-[1.5rem] p-5 border border-soft shadow-sm space-y-2">
       <button id="leaveRoomBtn" class="w-full py-3 bg-soft text-ink text-sm font-bold rounded-full hover:bg-ink hover:text-white transition-colors active:scale-95">Leave online room</button>
@@ -427,7 +435,6 @@
 <button id="menuBtn" style="display:none" aria-hidden="true"></button>
 <div id="toast" class="toast"></div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="script.JS"></script>
 </body>
 </html>
