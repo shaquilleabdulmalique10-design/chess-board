@@ -1356,78 +1356,204 @@ function renderMatches() {
 }
 
 // ── Practice puzzles ──────────────────────────
-const PUZZLES = [
+// Organised into 3 categories. Each puzzle has a verified FEN, the exact
+// FROM/TO squares for the solution, an XP reward, and an optional `special`
+// tag that drives post-move visual effects (castling, en-passant, promotion).
+const PUZZLE_CATEGORIES = [
   {
-    id: "pawn",
-    title: "Pawn move",
-    hint: "Pawns move forward one square. Push the white pawn from e2 to e4.",
-    fen: "8/8/8/8/8/8/4P3/4K3 w - - 0 1",
-    sol: { from: "e2", to: "e4" },
-    xp: 20,
+    label: "How pieces move",
+    icon: "♟",
+    puzzles: [
+      {
+        id: "pawn_move",
+        title: "Pawn — move forward",
+        hint: "Pawns move forward 1 square, or 2 squares on their very first move. The white pawn is on e2 — push it all the way to e4!",
+        fen: "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
+        sol: { from: "e2", to: "e4" },
+        xp: 10,
+      },
+      {
+        id: "knight_move",
+        title: "Knight — the L-shape jump",
+        hint: "Knights move in an 'L': 2 squares in one direction then 1 square sideways. They are the only piece that can jump over others! Move the knight from b1 to c3.",
+        fen: "4k3/8/8/8/8/8/8/1N2K3 w - - 0 1",
+        sol: { from: "b1", to: "c3" },
+        xp: 15,
+      },
+      {
+        id: "bishop_move",
+        title: "Bishop — diagonal slide",
+        hint: "Bishops slide diagonally any number of squares. A bishop stays on the same colour for the whole game. Move the bishop from c1 to f4.",
+        fen: "4k3/8/8/8/8/8/8/2B1K3 w - - 0 1",
+        sol: { from: "c1", to: "f4" },
+        xp: 15,
+      },
+      {
+        id: "rook_move",
+        title: "Rook — straight slide",
+        hint: "Rooks slide along ranks (rows) or files (columns) any number of squares. Move the rook from a1 up to a5.",
+        fen: "4k3/8/8/8/8/8/8/R3K3 w - - 0 1",
+        sol: { from: "a1", to: "a5" },
+        xp: 15,
+      },
+      {
+        id: "queen_move",
+        title: "Queen — most powerful piece",
+        hint: "The queen combines the rook and bishop — she can slide in any direction. Move the queen from d1 diagonally to h5.",
+        fen: "4k3/8/8/8/8/8/8/3QK3 w - - 0 1",
+        sol: { from: "d1", to: "h5" },
+        xp: 15,
+      },
+      {
+        id: "king_move",
+        title: "King — one step at a time",
+        hint: "The king moves exactly one square in any direction. Protect him at all costs — losing the king means losing the game! Move the king from e1 to f2.",
+        fen: "8/8/8/8/8/8/8/4K3 w - - 0 1",
+        sol: { from: "e1", to: "f2" },
+        xp: 10,
+      },
+    ],
   },
   {
-    id: "knight",
-    title: "Knight jump",
-    hint: "Knights jump in an L shape. Move the knight from b1 to c3.",
-    fen: "8/8/8/8/8/8/8/1N2K3 w - - 0 1",
-    sol: { from: "b1", to: "c3" },
-    xp: 25,
+    label: "Special moves",
+    icon: "⚡",
+    puzzles: [
+      {
+        id: "capture",
+        title: "Capture a piece",
+        hint: "You capture an enemy piece by moving onto its square — it is then removed from the board. Slide your bishop diagonally from f3 to capture the black pawn on d5.",
+        fen: "4k3/8/8/3p4/8/5B2/8/4K3 w - - 0 1",
+        sol: { from: "f3", to: "d5" },
+        xp: 20,
+      },
+      {
+        id: "castling_ks",
+        title: "Castling — king-side",
+        hint: "Castling is a special king + rook move. The king slides 2 squares toward the rook, and the rook jumps to the other side. You can only castle if neither piece has moved and there are no pieces between them. Castle king-side: move the king from e1 to g1.",
+        fen: "4k3/8/8/8/8/8/8/4K2R w KQ - 0 1",
+        sol: { from: "e1", to: "g1" },
+        special: "castle_ks",
+        xp: 30,
+      },
+      {
+        id: "castling_qs",
+        title: "Castling — queen-side",
+        hint: "You can also castle queen-side — the king moves 2 squares left toward the a-file rook, and the rook jumps over to d1. Move the king from e1 to c1.",
+        fen: "4k3/8/8/8/8/8/8/R3K3 w KQ - 0 1",
+        sol: { from: "e1", to: "c1" },
+        special: "castle_qs",
+        xp: 30,
+      },
+      {
+        id: "en_passant",
+        title: "En passant — sneaky pawn capture",
+        hint: "En passant ('in passing') is a special pawn capture. If an enemy pawn double-pushes past your pawn, you can capture it as if it only moved one square. The black pawn just rushed to d5 — capture it by moving your pawn from e5 to d6!",
+        fen: "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        sol: { from: "e5", to: "d6" },
+        special: "en_passant",
+        xp: 35,
+      },
+      {
+        id: "pawn_promo",
+        title: "Pawn promotion",
+        hint: "When a pawn reaches the opposite end of the board it promotes — you replace it with any piece (usually a queen). Push the white pawn from e7 to e8 and promote!",
+        fen: "7k/4P3/8/8/8/8/8/4K3 w - - 0 1",
+        sol: { from: "e7", to: "e8" },
+        special: "promotion",
+        xp: 30,
+      },
+    ],
   },
   {
-    id: "capture",
-    title: "Capture a piece",
-    hint: "Bishops move diagonally. Capture the black pawn on d5 with your bishop on f3.",
-    fen: "4k3/8/8/3p4/8/5B2/8/4K3 w - - 0 1",
-    sol: { from: "f3", to: "d5" },
-    xp: 30,
-  },
-  {
-    id: "check",
-    title: "Give check",
-    hint: "Move the rook from h1 to h8 to put the black king in check.",
-    fen: "7k/8/8/8/8/8/8/4K2R w - - 0 1",
-    sol: { from: "h1", to: "h8" },
-    xp: 35,
-  },
-  {
-    id: "mate1",
-    title: "Mate in one",
-    hint: "Deliver checkmate in one move — slide the rook up to b8!",
-    fen: "k7/8/1K6/8/8/8/8/1R6 w - - 0 1",
-    sol: { from: "b1", to: "b8" },
-    xp: 50,
+    label: "Tactics & checkmate",
+    icon: "🎯",
+    puzzles: [
+      {
+        id: "check",
+        title: "Give check",
+        hint: "Check means the king is under attack and must escape immediately. Slide the rook from h1 all the way to h8 to put the black king in check!",
+        fen: "7k/8/8/8/8/8/8/4K2R w - - 0 1",
+        sol: { from: "h1", to: "h8" },
+        xp: 25,
+      },
+      {
+        id: "knight_fork",
+        title: "Knight fork",
+        hint: "A fork attacks two pieces at the same time — the opponent can only save one! Move the knight from d1 to e3. From there it attacks both the black pawn on d5 AND the black rook on f5 at once!",
+        fen: "7k/8/8/3p1r2/8/8/8/3NK3 w - - 0 1",
+        sol: { from: "d1", to: "e3" },
+        xp: 40,
+      },
+      {
+        id: "mate1",
+        title: "Checkmate in one!",
+        hint: "Checkmate means the king is in check and has no escape — the game is over! The black king is trapped in the corner at a8. The white king covers a7. Slide the rook from b1 to b8 for checkmate!",
+        fen: "k7/8/1K6/8/8/8/8/1R6 w - - 0 1",
+        sol: { from: "b1", to: "b8" },
+        xp: 50,
+      },
+    ],
   },
 ];
+
+// Flat list (used for XP counter and solved tracking)
+const PUZZLES = PUZZLE_CATEGORIES.flatMap((cat) => cat.puzzles);
+
 let activePuzzle = null,
   puzzleChess = null,
   puzzleSel = null,
   puzzleTargets = [];
 
+// ── Render categorised practice list ──────────
 function renderPracticeList() {
   const list = $("practiceList");
   if (!list) return;
   list.innerHTML = "";
   const solved = JSON.parse(localStorage.getItem("chess-arena-solved") || "[]");
-  PUZZLES.forEach((p) => {
-    const done = solved.includes(p.id);
-    const btn = document.createElement("button");
-    btn.className = "practice-card";
-    btn.innerHTML = `<div><p class="font-bold text-sm">${p.title}</p><p class="text-xs text-mute mt-0.5">${p.hint.slice(0, 60)}…</p></div><div class="text-right flex-shrink-0 ml-3"><p class="text-xs font-bold">${p.xp} XP</p><p class="text-xs ${done ? "text-green-600 font-bold" : "text-mute"}">${done ? "✓ Solved" : "Start"}</p></div>`;
-    btn.onclick = () => openPuzzle(p);
-    list.appendChild(btn);
+  const total = PUZZLES.length;
+  const doneCount = PUZZLES.filter((p) => solved.includes(p.id)).length;
+
+  // Progress bar header
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  const header = document.createElement("div");
+  header.className = "mb-4";
+  header.innerHTML = `
+    <div class="flex items-center justify-between mb-1">
+      <p class="text-xs font-bold text-ink">${doneCount}/${total} lessons completed</p>
+      <p class="text-xs font-bold text-mute">${pct}%</p>
+    </div>
+    <div class="w-full h-2 bg-soft rounded-full overflow-hidden">
+      <div class="h-full bg-ink rounded-full transition-all" style="width:${pct}%"></div>
+    </div>`;
+  list.appendChild(header);
+
+  PUZZLE_CATEGORIES.forEach((cat) => {
+    // Category heading
+    const catHead = document.createElement("div");
+    catHead.className = "flex items-center gap-2 mt-4 mb-2";
+    catHead.innerHTML = `<span class="text-lg">${cat.icon}</span><p class="text-xs font-black tracking-[0.18em] text-mute uppercase">${cat.label}</p>`;
+    list.appendChild(catHead);
+
+    cat.puzzles.forEach((p) => {
+      const done = solved.includes(p.id);
+      const btn = document.createElement("button");
+      btn.className = "practice-card mb-2";
+      btn.innerHTML = `
+        <div class="flex-1 text-left">
+          <p class="font-bold text-sm">${p.title}</p>
+          <p class="text-xs text-mute mt-0.5 leading-relaxed">${p.hint.slice(0, 72)}…</p>
+        </div>
+        <div class="text-right flex-shrink-0 ml-3 flex flex-col items-end gap-1">
+          <span class="text-xs font-black text-ink">+${p.xp} XP</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? "bg-green-100 text-green-700" : "bg-soft text-mute"}">${done ? "✓ Done" : "Start"}</span>
+        </div>`;
+      btn.onclick = () => openPuzzle(p);
+      list.appendChild(btn);
+    });
   });
 }
 
-// We need a simple chess engine for practice — use a plain JS mini-chess
-// (no external import needed — basic move application)
-function pzMove(board, from, to) {
-  const f = pzSq(from),
-    t = pzSq(to);
-  const nb = board.map((r) => [...r]);
-  nb[t[0]][t[1]] = nb[f[0]][f[1]];
-  nb[f[0]][f[1]] = "";
-  return nb;
-}
+// ── Puzzle board helpers ───────────────────────
 function pzSq(sq) {
   const f = sq.charCodeAt(0) - 97,
     r = 8 - parseInt(sq[1]);
@@ -1446,6 +1572,35 @@ function pzFen2Board(fen) {
   });
 }
 
+// pzMove handles normal moves + three special cases
+function pzMove(board, from, to, special) {
+  const [fr, fc] = pzSq(from);
+  const [tr, tc] = pzSq(to);
+  const nb = board.map((r) => [...r]);
+  const piece = nb[fr][fc];
+
+  nb[tr][tc] = piece;
+  nb[fr][fc] = "";
+
+  if (special === "castle_ks") {
+    // Move rook from h1 (7,7) to f1 (7,5)
+    nb[7][5] = nb[7][7];
+    nb[7][7] = "";
+  } else if (special === "castle_qs") {
+    // Move rook from a1 (7,0) to d1 (7,3)
+    nb[7][3] = nb[7][0];
+    nb[7][0] = "";
+  } else if (special === "en_passant") {
+    // Remove the captured pawn — it sits on the same rank as FROM, same file as TO
+    nb[fr][tc] = "";
+  } else if (special === "promotion") {
+    // Promote to queen
+    nb[tr][tc] = "Q";
+  }
+
+  return nb;
+}
+
 function openPuzzle(p) {
   activePuzzle = p;
   puzzleSel = null;
@@ -1455,11 +1610,12 @@ function openPuzzle(p) {
   $("practicePlay").classList.remove("hidden");
   $("practiceTitle").textContent = p.title;
   $("practiceHint").textContent = p.hint;
-  $("practiceStatus").textContent = "Your move";
-  $("practiceStatus").className = "text-center text-sm font-semibold mt-3";
+  $("practiceStatus").textContent = "Click the highlighted piece to move it";
+  $("practiceStatus").className = "text-center text-sm text-mute mt-3";
   renderPuzzleBoard();
 }
 
+// ── Render puzzle board (uses SVG piece images) ──
 function renderPuzzleBoard() {
   const el = $("practiceBoard");
   if (!el) return;
@@ -1472,78 +1628,113 @@ function renderPuzzleBoard() {
       const light = (r + c) % 2 === 0;
       const cell = document.createElement("div");
       cell.className = `board-square ${light ? "light" : "dark"}`;
+
+      // Highlight the solution FROM square so the player knows which piece to move
+      if (activePuzzle && sq === activePuzzle.sol.from && !puzzleSel) {
+        cell.classList.add("pz-hint");
+      }
       if (puzzleSel === sq) cell.classList.add("selected");
       if (puzzleTargets.includes(sq)) cell.classList.add("valid");
+
+      // Coordinates
+      if (c === 0) {
+        const lb = document.createElement("span");
+        lb.className = "coord-top";
+        lb.textContent = 8 - r;
+        cell.appendChild(lb);
+      }
+      if (r === 7) {
+        const lb = document.createElement("span");
+        lb.className = "coord-bottom";
+        lb.textContent = files[c];
+        cell.appendChild(lb);
+      }
+
       if (p) {
-        const sp = document.createElement("span");
-        const isW = p === p.toUpperCase();
-        sp.className = `piece ${isW ? "white" : "black"}`;
-        sp.textContent = GLYPHS[p] || p;
-        cell.appendChild(sp);
+        const img = document.createElement("img");
+        img.src = PIECE_IMG[p] || "";
+        img.alt = GLYPHS[p] || p;
+        img.className = "piece-img";
+        img.draggable = false;
+        cell.appendChild(img);
       }
       cell.onclick = () => clickPuzzle(sq);
       el.appendChild(cell);
     }
 }
 
+// ── Click handler for puzzle board ────────────
 function clickPuzzle(sq) {
   if (!activePuzzle) return;
 
-  // If a piece is already selected and user clicks a highlighted target square
+  // User clicked a highlighted target square — attempt the move
   if (puzzleSel && puzzleTargets.includes(sq)) {
-    const ok =
-      puzzleSel === activePuzzle.sol.from && sq === activePuzzle.sol.to;
+    const ok = puzzleSel === activePuzzle.sol.from && sq === activePuzzle.sol.to;
     if (!ok) {
       $("practiceStatus").textContent = "Not quite — try again!";
-      $("practiceStatus").className =
-        "text-center text-sm font-semibold mt-3 text-red-600";
+      $("practiceStatus").className = "text-center text-sm font-semibold mt-3 text-red-500";
       puzzleSel = null;
       puzzleTargets = [];
       renderPuzzleBoard();
       return;
     }
-    puzzleChess = pzMove(puzzleChess, puzzleSel, sq);
+
+    // Correct move — apply with special-case handling
+    puzzleChess = pzMove(puzzleChess, puzzleSel, sq, activePuzzle.special);
     puzzleSel = null;
     puzzleTargets = [];
     renderPuzzleBoard();
-    $("practiceStatus").textContent = "✅ Correct! Puzzle solved!";
-    $("practiceStatus").className =
-      "text-center text-sm font-semibold mt-3 text-green-600";
-    const solved = JSON.parse(
-      localStorage.getItem("chess-arena-solved") || "[]",
-    );
-    if (!solved.includes(activePuzzle.id)) {
+
+    // Build success message based on special type
+    const msgs = {
+      castle_ks:   "✅ Nice! You castled king-side — king is safer now!",
+      castle_qs:   "✅ Nice! You castled queen-side — king is safer now!",
+      en_passant:  "✅ En passant! The sneaky capture worked!",
+      promotion:   "✅ Pawn promoted to Queen — most powerful piece on the board!",
+    };
+    const successMsg = msgs[activePuzzle.special] || "✅ Correct! Well done!";
+
+    $("practiceStatus").textContent = successMsg;
+    $("practiceStatus").className = "text-center text-sm font-semibold mt-3 text-green-600";
+
+    const solved = JSON.parse(localStorage.getItem("chess-arena-solved") || "[]");
+    const alreadySolved = solved.includes(activePuzzle.id);
+    if (!alreadySolved) {
       solved.push(activePuzzle.id);
       localStorage.setItem("chess-arena-solved", JSON.stringify(solved));
+      showToast(`+${activePuzzle.xp} XP 🎉`);
+    } else {
+      showToast("Already solved — no extra XP");
     }
-    showToast(`+${activePuzzle.xp} XP 🎉`);
+
+    // Update progress counter on learn screen and home screen
     const pp = $("practiceProgress");
-    if (pp) pp.textContent = `${solved.length} puzzles solved`;
+    if (pp) pp.textContent = `${solved.length} / ${PUZZLES.length} lessons done`;
     return;
   }
 
-  // Convert algebraic square to board row/col using pzSq (same as pzMove)
+  // User clicked a square — check if it's the correct piece
   const [pr, pc2] = pzSq(sq);
   const piece = puzzleChess[pr]?.[pc2];
+  const isWhitePiece = piece && piece === piece.toUpperCase() && piece !== "";
 
-  // Only allow selecting white pieces (uppercase)
-  if (piece && piece === piece.toUpperCase() && piece !== "") {
-    puzzleSel = sq;
-    // Show the solution destination as the target hint
-    // Only show it when the correct "from" piece is clicked
+  if (isWhitePiece) {
     if (sq === activePuzzle.sol.from) {
+      // Correct piece selected — show target
+      puzzleSel = sq;
       puzzleTargets = [activePuzzle.sol.to];
+      $("practiceStatus").textContent = "Good — now click the highlighted destination!";
+      $("practiceStatus").className = "text-center text-sm font-semibold mt-3 text-blue-600";
     } else {
-      // Wrong piece selected — show it selected but no valid targets
-      // so user can try clicking the right piece
+      // Wrong piece — deselect and nudge
+      puzzleSel = null;
       puzzleTargets = [];
-      $("practiceStatus").textContent = "That's not the right piece — try again!";
-      $("practiceStatus").className =
-        "text-center text-sm font-semibold mt-3 text-yellow-600";
+      $("practiceStatus").textContent = "That's not the right piece — look for the glowing square!";
+      $("practiceStatus").className = "text-center text-sm font-semibold mt-3 text-yellow-600";
     }
     renderPuzzleBoard();
   } else {
-    // Clicked empty square or black piece — deselect
+    // Empty or black piece — deselect
     puzzleSel = null;
     puzzleTargets = [];
     renderPuzzleBoard();
@@ -2182,7 +2373,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.getItem("chess-arena-solved") || "[]",
   );
   const pp = $("practiceProgress");
-  if (pp) pp.textContent = solvedList.length + " puzzles solved";
+  if (pp) pp.textContent = solvedList.length + " / " + PUZZLES.length + " lessons done";
 
   setMode("computer");
   setDiff("easy");
