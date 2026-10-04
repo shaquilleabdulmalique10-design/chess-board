@@ -1042,14 +1042,18 @@ function hideOnlineUI() {
 }
 // (online connection handled by WebSocket handleServerMsg)
 function leaveGame() {
+  clearTimeout(wsReconnectTimer);
   if (ws) {
     wsSend({ type: "leave-room" });
+    ws.onclose = null; // prevent reconnect loop on intentional leave
     ws.close();
     ws = null;
   }
   isOnline = false;
   myColor = null;
   onlineOpponentName = "";
+  myShortCode = "";
+  myPlayerName = "";
   currentMode = "computer";
   setConnStatus("offline");
   hideOnlineUI();
@@ -2011,6 +2015,8 @@ function switchMatchTab(tab) {
 // ══════════════════════════════════════════════
 let ws = null; // WebSocket connection
 let myShortCode = ""; // current room code
+let myPlayerName = ""; // stored so we can rejoin after reconnect
+let wsReconnectTimer = null; // debounce reconnect attempts
 
 function wsUrl() {
   // Works both locally (ws://) and on any HTTPS host (wss://)
@@ -2023,6 +2029,11 @@ function wsConnect(onOpen) {
     onOpen();
     return;
   }
+  // Close any stale socket cleanly before creating a new one
+  if (ws && ws.readyState !== WebSocket.CLOSED) {
+    ws.onclose = null; // suppress the "Disconnected" toast on intentional close
+    ws.close();
+  }
   ws = new WebSocket(wsUrl());
   ws.onopen = onOpen;
   ws.onerror = () => {
@@ -2031,12 +2042,30 @@ function wsConnect(onOpen) {
   };
   ws.onclose = () => {
     if (isOnline) {
-      isOnline = false;
-      setConnStatus("offline");
-      showToast("⚠️ Disconnected from server", 5000);
+      // Don't immediately declare offline — attempt silent reconnect first
+      scheduleReconnect();
     }
   };
   ws.onmessage = (e) => handleServerMsg(JSON.parse(e.data));
+}
+
+// ── Silent reconnect (called when WS drops while a game is live) ──
+function scheduleReconnect() {
+  clearTimeout(wsReconnectTimer);
+  wsReconnectTimer = setTimeout(() => {
+    // Only attempt if we were in an active online game and have a room code
+    if (!myShortCode || !myPlayerName) {
+      isOnline = false;
+      setConnStatus("offline");
+      showToast("⚠️ Disconnected from server", 5000);
+      return;
+    }
+    setConnStatus("connecting");
+    wsConnect(() => {
+      // Reconnected — rejoin the same room
+      wsSend({ type: "join-room", roomCode: myShortCode, playerName: myPlayerName });
+    });
+  }, 1500); // wait 1.5s before trying (handles brief backgrounding)
 }
 
 function wsSend(obj) {
@@ -2193,6 +2222,11 @@ function handleServerMsg(msg) {
         setConnStatus("offline");
       }
       break;
+
+    case "ping":
+      // Server heartbeat — reply so the server knows we're still here
+      wsSend({ type: "pong" });
+      break;
   }
 }
 
@@ -2222,6 +2256,7 @@ function createGame() {
   setConnStatus("connecting");
   const name =
     ($("playerName")?.value || "").trim() || currentUser?.name || "Host";
+  myPlayerName = name;
   wsConnect(() => {
     wsSend({ type: "create-room", playerName: name });
   });
@@ -2240,6 +2275,7 @@ function joinGame() {
   setConnStatus("connecting");
   const name =
     ($("playerName")?.value || "").trim() || currentUser?.name || "Guest";
+  myPlayerName = name;
   wsConnect(() => {
     wsSend({ type: "join-room", roomCode: raw, playerName: name });
   });
@@ -2494,4 +2530,18 @@ document.addEventListener("DOMContentLoaded", function () {
     currentUser = savedUser;
     enterApp();
   } else showWelcomeScreen();
+
+  // ── Keep WebSocket alive when user switches apps to share room code ──
+  // When the tab becomes visible again, reconnect if the socket dropped.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && myShortCode && myPlayerName) {
+      // Tab came back into focus — check if WS is still alive
+      if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        setConnStatus("connecting");
+        wsConnect(() => {
+          wsSend({ type: "join-room", roomCode: myShortCode, playerName: myPlayerName });
+        });
+      }
+    }
+  });
 });

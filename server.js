@@ -97,6 +97,8 @@ function joinRoom(socket, roomCode, color, name) {
 
 wss.on("connection", (socket) => {
   socket.meta = null;
+  socket.isAlive = true;
+  socket.on("pong", () => { socket.isAlive = true; });
 
   socket.on("message", (raw) => {
     let data;
@@ -229,12 +231,33 @@ wss.on("connection", (socket) => {
         data.type === "draw_decline" || data.type === "resign") {
       broadcast(room, { type: data.type }, socket);
     }
+
+    // client pong (manual, in case browser strips WebSocket pong frames)
+    if (data.type === "pong") {
+      socket.isAlive = true;
+    }
   });
 
   socket.on("close", () => {
     removePlayer(socket);
   });
 });
+
+// ── Heartbeat: ping every 25 s, kill silent sockets after 2 missed pings ──
+const heartbeat = setInterval(() => {
+  wss.clients.forEach((socket) => {
+    if (socket.isAlive === false) {
+      removePlayer(socket);
+      return socket.terminate();
+    }
+    socket.isAlive = false;
+    socket.ping();
+    // Also send a JSON ping so clients that can't handle WS ping frames still respond
+    safeSend(socket, { type: "ping" });
+  });
+}, 25000);
+
+wss.on("close", () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
   console.log(`Chess Arena Live running on http://localhost:${PORT}`);
