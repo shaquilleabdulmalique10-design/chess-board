@@ -40,15 +40,16 @@ function removePlayer(socket) {
     room.players[color] = null;
   }
 
-  const message = `${socket.meta.playerName || "A player"} left room ${roomCode}.`;
+  const leaverName = socket.meta.playerName || "A player";
 
   ["white", "black"].forEach((side) => {
     const peer = room.players[side]?.socket;
     if (peer) {
       safeSend(peer, {
         type: "player-left",
+        leaverColor: color,        // who left
+        leaverName,                // their display name
         players: roomSnapshot(room),
-        message
       });
     }
   });

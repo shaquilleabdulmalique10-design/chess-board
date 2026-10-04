@@ -1043,6 +1043,14 @@ function hideOnlineUI() {
 // (online connection handled by WebSocket handleServerMsg)
 function leaveGame() {
   clearTimeout(wsReconnectTimer);
+
+  // If leaving mid-game (game not over yet), record it as a forfeit loss for us
+  if (isOnline && !gameOver && moveHistory.length > 0) {
+    gameOver = true;
+    winner = opp(myColor);
+    saveGameResult(winner);
+  }
+
   if (ws) {
     wsSend({ type: "leave-room" });
     ws.onclose = null; // prevent reconnect loop on intentional leave
@@ -2066,9 +2074,7 @@ function scheduleReconnect() {
       wsSend({ type: "join-room", roomCode: myShortCode, playerName: myPlayerName });
     });
   }, 1500); // wait 1.5s before trying (handles brief backgrounding)
-}
-
-function wsSend(obj) {
+}function wsSend(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
 
@@ -2208,10 +2214,26 @@ function handleServerMsg(msg) {
       break;
 
     case "player-left":
-      if (isOnline) {
+      if (isOnline && !gameOver) {
+        // Game is forfeited — the player who left loses, the remaining player wins
+        gameOver = true;
+        winner = myColor; // I'm still here, so I win
         isOnline = false;
         setConnStatus("offline");
-        if (!gameOver) showToast("⚠️ Opponent left the room", 5000);
+        saveGameResult(myColor);
+        const leaverDisplay = msg.leaverName || "Opponent";
+        setTimeout(() => {
+          showModal(
+            "🏆",
+            "You Win!",
+            `${leaverDisplay} left the game and forfeited.`
+          );
+        }, 300);
+        snd("checkmate");
+      } else if (isOnline) {
+        // Game was already over when they left — just update status
+        isOnline = false;
+        setConnStatus("offline");
       }
       break;
 
